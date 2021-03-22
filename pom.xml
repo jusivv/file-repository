@@ -49,4 +49,11 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>dcsoft-release</id>
+            <url>http://172.168.2.160/content/repositories/releases/</url>
+        </repository>
+    </distributionManagement>
 </project>
