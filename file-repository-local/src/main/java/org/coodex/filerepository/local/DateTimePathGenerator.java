@@ -1,13 +1,20 @@
 package org.coodex.filerepository.local;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * separate by date time
+ * UTC+8
  */
 public class DateTimePathGenerator implements IPathGenerator {
+    private static Logger log = LoggerFactory.getLogger(DateTimePathGenerator.class);
+
     /**
      * get a file path separate by date time
      * @param seed  parameter for generator
@@ -15,7 +22,9 @@ public class DateTimePathGenerator implements IPathGenerator {
      */
     @Override
     public String getPath(String seed) {
+        UUID uuid = toUUID(seed);
         Calendar calendar = Calendar.getInstance(Locale.CHINA);
+        calendar.setTimeInMillis(uuid.timestamp());
         StringBuilder path = new StringBuilder();
         path.append(calendar.get(Calendar.YEAR)).append(File.separatorChar);
         int month = calendar.get(Calendar.MONTH);
@@ -23,7 +32,7 @@ public class DateTimePathGenerator implements IPathGenerator {
             path.append("0");
         }
         path.append(month).append(File.separatorChar);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH) + 1;
         if (day < 10) {
             path.append("0");
         }
@@ -39,5 +48,22 @@ public class DateTimePathGenerator implements IPathGenerator {
         }
         path.append(minute).append(File.separatorChar);
         return path.toString();
+    }
+
+    private UUID toUUID(String seed) {
+        String uuidStr = seed;
+        StringBuilder sb = new StringBuilder();
+        if (seed.length() == 32) {
+            sb.append(seed.substring(0, 8)).append('-').append(seed.substring(8, 12)).append('-')
+                    .append(seed.substring(12, 16)).append('-').append(seed.substring(16, 20)).append('-')
+                    .append(seed.substring(20));
+            uuidStr = sb.toString();
+        }
+        if (uuidStr.length() == 36) {
+            return UUID.fromString(uuidStr);
+        } else {
+            log.warn("Illegal UUID string: {}", seed);
+            return UUID.randomUUID();
+        }
     }
 }
