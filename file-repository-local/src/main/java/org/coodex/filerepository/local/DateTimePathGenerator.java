@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.UUID;
@@ -23,16 +24,17 @@ public class DateTimePathGenerator implements IPathGenerator {
     @Override
     public String getPath(String seed) {
         UUID uuid = toUUID(seed);
+        Instant instant = UuidHelper.getInstantFromUUID(uuid);
         Calendar calendar = Calendar.getInstance(Locale.CHINA);
-        calendar.setTimeInMillis(uuid.timestamp());
+        calendar.setTimeInMillis(instant.toEpochMilli());
         StringBuilder path = new StringBuilder();
         path.append(calendar.get(Calendar.YEAR)).append(File.separatorChar);
-        int month = calendar.get(Calendar.MONTH);
+        int month = calendar.get(Calendar.MONTH) + 1;
         if (month < 10) {
             path.append("0");
         }
         path.append(month).append(File.separatorChar);
-        int day = calendar.get(Calendar.DAY_OF_MONTH) + 1;
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
         if (day < 10) {
             path.append("0");
         }

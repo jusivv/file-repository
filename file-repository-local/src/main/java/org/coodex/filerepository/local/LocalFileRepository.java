@@ -1,6 +1,8 @@
 package org.coodex.filerepository.local;
 
 import com.alibaba.fastjson.JSON;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.NoArgGenerator;
 import org.coodex.filerepository.api.*;
 import org.coodex.util.Common;
 import org.coodex.util.Profile;
@@ -17,10 +19,12 @@ public class LocalFileRepository implements IFileRepository {
 
     private String basePath;
     private IPathGenerator[] pathGenerators;
+    private NoArgGenerator uuidGenerator;
 
     public LocalFileRepository(String basePath, IPathGenerator ... pathGenerators) {
         this.basePath = basePath.endsWith(File.separator) ? basePath : basePath + File.separatorChar;
         this.pathGenerators = pathGenerators;
+        this.uuidGenerator = Generators.timeBasedGenerator();
     }
 
     private String getPath(String seed) {
@@ -50,7 +54,7 @@ public class LocalFileRepository implements IFileRepository {
 
     @Override
     public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback callback) {
-        String fileId = Common.getUUIDStr();
+        String fileId = UuidHelper.getUUIDString();
         String filePath = getPath(fileId);
         File path = new File(filePath);
         if (!path.exists()) {
