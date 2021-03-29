@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -83,7 +82,7 @@ public class LocalFileRepository implements IFileRepository {
             StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
             storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
             storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
-            FileWriter fileWriter = new FileWriter(metaFile, Charset.forName("UTF-8"));
+            FileWriter fileWriter = new FileWriter(metaFile);
             try {
                 fileWriter.write(JSON.toJSONString(storedFileMetaInf));
                 fileWriter.flush();
