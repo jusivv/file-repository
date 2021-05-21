@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.filerepository.api.IFileRepository;
 import org.coodex.filerepository.api.StoredFileMetaInf;
-import org.coodex.filerepository.ext.callback.CtrCryptoReadCallback;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
 import org.coodex.filerepository.local.LocalRepositoryPath;
@@ -14,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Scanner;
 
@@ -107,8 +105,14 @@ public class CtrCryptoAccessSample {
         }
         file.createNewFile();
         OutputStream outputStream = new FileOutputStream(file);
-        fileRepository.get(fileId,
-                new CtrCryptoReadCallback(outputStream, Base64.getDecoder().decode(config.getString("aes.ctr.key"))));
+        try {
+//            fileRepository.get(fileId,
+//                    new CtrCryptoReadCallback(outputStream, Base64.getDecoder().decode(config.getString("aes.ctr.key"))));
+            fileRepository.get(fileId, outputStream);
+        } finally {
+            outputStream.flush();
+            outputStream.close();
+        }
     }
 
     private static void deleteFile(String fileId, IFileRepository fileRepository) throws Throwable {
