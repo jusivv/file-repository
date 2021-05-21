@@ -1,8 +1,6 @@
 package org.coodex.filerepository.local;
 
 import com.alibaba.fastjson.JSON;
-import com.fasterxml.uuid.Generators;
-import com.fasterxml.uuid.NoArgGenerator;
 import org.coodex.filerepository.api.*;
 import org.coodex.util.Common;
 import org.coodex.util.Profile;
@@ -11,23 +9,57 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LocalFileRepository implements IFileRepository {
     private static Logger log = LoggerFactory.getLogger(LocalFileRepository.class);
     private static Profile profile = Profile.get("localFileRepository.properties");
 
-    private String basePath;
+    private LocalRepositoryPath[] basePaths;
     private IPathGenerator[] pathGenerators;
-    private NoArgGenerator uuidGenerator;
 
-    public LocalFileRepository(String basePath, IPathGenerator ... pathGenerators) {
-        this.basePath = basePath.endsWith(File.separator) ? basePath : basePath + File.separatorChar;
+    public LocalFileRepository(LocalRepositoryPath[] basePaths, IPathGenerator ... pathGenerators) {
         this.pathGenerators = pathGenerators;
-        this.uuidGenerator = Generators.timeBasedGenerator();
+        Map<String, LocalRepositoryPath> pathMap = new HashMap<>();
+        boolean hasReadDir = false, hasWriteDir = false;
+        for (LocalRepositoryPath path : basePaths) {
+            if (!path.isCanRead() && !path.isCanWrite()) {
+                continue;
+            }
+            String basePath = path.getBasePath().endsWith(File.separator) ? path.getBasePath() : path.getBasePath()
+                    + File.separator;
+            if (pathMap.containsKey(basePath)) {
+                continue;
+            }
+            File fp = new File(path.getBasePath());
+            if (!fp.isDirectory()) {
+                throw new RuntimeException("Invalid base path: " + path.getBasePath());
+            }
+            fp = new File(basePath + "." + UuidHelper.getUUIDString());
+            if (!fp.mkdirs()) {
+                throw new RuntimeException("Fail to write directory: " + path.getBasePath());
+            }
+            LocalRepositoryPath localRepositoryPath = new LocalRepositoryPath(basePath, path.isCanRead(),
+                    path.isCanWrite());
+            if (localRepositoryPath.isCanRead()) {
+                hasReadDir = true;
+            }
+            if (localRepositoryPath.isCanWrite()) {
+                hasWriteDir = true;
+            }
+            pathMap.put(basePath, localRepositoryPath);
+        }
+        if (!hasReadDir) {
+            throw new RuntimeException("There is no directory to read");
+        }
+        if (!hasWriteDir) {
+            throw new RuntimeException("There is no directory to write");
+        }
+        this.basePaths = pathMap.values().toArray(new LocalRepositoryPath[0]);
     }
 
-    private String getPath(String seed) {
+    private String getPath(String seed, String basePath) {
         StringBuilder path = new StringBuilder(basePath);
         for (IPathGenerator pathGenerator : pathGenerators) {
             String subPath = pathGenerator.getPath(seed);
@@ -37,160 +69,175 @@ public class LocalFileRepository implements IFileRepository {
     }
 
     @Override
-    public String save(InputStream inputStream, FileMetaInf fileMetaInf) {
-        return save(fileMetaInf, new RepositoryWriteCallback() {
-            @Override
-            public int write(OutputStream outputStream) {
-                try {
-                    Common.copyStream(inputStream, outputStream);
-                    return 0;
-                } catch (IOException e) {
-                    log.error(e.getLocalizedMessage(), e);
-                    return 1;
-                }
-            }
-        });
+    public String save(InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
+        return save(fileMetaInf, outputStream -> Common.copyStream(inputStream, outputStream));
     }
 
     @Override
-    public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback callback) {
+    public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback) throws Throwable {
         String fileId = UuidHelper.getUUIDString();
-        String filePath = getPath(fileId);
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isCanWrite()) {
+                String filePath = getPath(fileId, path.getBasePath());
+                saveFile(filePath, fileId, fileMetaInf, writeCallback);
+                log.debug("write file {} to {}", fileId, path.getBasePath());
+            }
+        }
+        return fileId;
+    }
+
+    private void saveFile(String filePath, String fileId, FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback)
+            throws Throwable {
         File path = new File(filePath);
         if (!path.exists()) {
             path.mkdirs();
         }
         File dataFile = new File(filePath + fileId + ".data");
         File metaFile = new File(filePath + fileId + ".json");
-        try {
-            if (!dataFile.exists()) {
-                dataFile.createNewFile();
-            }
-            // use buffer
-            String digestAlgorithm = profile.getString("digestAlgorithm", "MD5");
-            FileOutputStreamWithMessageDigest digestOutputStream = new FileOutputStreamWithMessageDigest(dataFile,
-                    MessageDigest.getInstance(digestAlgorithm));
-            OutputStream outputStream = new BufferedOutputStream(digestOutputStream);
-            try {
-                int code = callback.write(outputStream);
-                if (code != 0) {
-                    throw new RuntimeException("fail to write file to repository with error code: " + code);
-                }
-            } finally {
-                outputStream.close();
-            }
-
-            if (!metaFile.exists()) {
-                metaFile.createNewFile();
-            }
-            StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
-            storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
-            storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
-            FileWriter fileWriter = new FileWriter(metaFile);
-            try {
-                fileWriter.write(JSON.toJSONString(storedFileMetaInf));
-                fileWriter.flush();
-            } finally {
-                fileWriter.close();
-            }
-        } catch (IOException e) {
-            log.error(e.getLocalizedMessage(), e);
-            throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException e) {
-            log.error(e.getLocalizedMessage(), e);
-            throw new RuntimeException(e);
+        if (!dataFile.exists()) {
+            dataFile.createNewFile();
         }
+        // use buffer
+        String digestAlgorithm = profile.getString("digestAlgorithm", "MD5");
+        FileOutputStreamWithMessageDigest digestOutputStream = new FileOutputStreamWithMessageDigest(dataFile,
+                MessageDigest.getInstance(digestAlgorithm));
+        OutputStream outputStream = new BufferedOutputStream(digestOutputStream);
+        try {
+            writeCallback.write(outputStream);
+        } finally {
+            outputStream.close();
+        }
+
+        if (!metaFile.exists()) {
+            metaFile.createNewFile();
+        }
+        StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
+        storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
+        storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
+        FileWriter fileWriter = new FileWriter(metaFile);
+        try {
+            fileWriter.write(JSON.toJSONString(storedFileMetaInf));
+            fileWriter.flush();
+        } finally {
+            fileWriter.close();
+        }
+    }
+
+    @Override
+    public void get(String fileId, OutputStream outputStream) throws Throwable {
+        get(fileId, (buff, len, fileSize) -> outputStream.write(buff, 0, len));
+    }
+
+    @Override
+    public void get(String fileId, RepositoryReadCallback readCallback) throws Throwable {
+        boolean read = false;
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isCanRead()) {
+                String filePath = getPath(fileId, path.getBasePath());
+                byte[] buff = new byte[4 * 1024];
+                int len = 0;
+                File dataFile = new File(filePath + fileId + ".data");
+                InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
+                try {
+                    long fileSize = dataFile.length();
+                    while ((len = inputStream.read(buff)) > 0) {
+                        readCallback.read(buff, len, fileSize);
+                    }
+                    log.debug("read file {} from {}", fileId, path.getBasePath());
+                    read = true;
+                    break;
+                } finally {
+                    inputStream.close();
+                }
+            }
+        }
+        if (!read) {
+            throw new RuntimeException("file not found: " + fileId);
+        }
+    }
+
+    @Override
+    public void delete(String fileId) throws Throwable {
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isCanWrite()) {
+                String filePath = getPath(fileId, path.getBasePath());
+                deleteFile(filePath, fileId);
+                log.debug("delete file {} from {}", fileId, path.getBasePath());
+            }
+        }
+    }
+
+    private void deleteFile(String filePath, String fileId) {
+        deleteLocalFile(filePath + fileId + ".data");
+        deleteLocalFile(filePath + fileId + ".json");
+    }
+
+
+    private void deleteLocalFile(String fileName) {
+        File f = new File(fileName);
+        if (f.exists()) {
+            f.delete();
+        }
+    }
+
+    @Override
+    public StoredFileMetaInf getMetaInf(String fileId) throws Throwable {
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isCanRead()) {
+                String filePath = getPath(fileId, path.getBasePath());
+                File metaFile = new File(filePath + fileId + ".json");
+                if (metaFile.exists()) {
+                    InputStream inputStream = new FileInputStream(metaFile);
+                    try {
+                        return JSON.parseObject(inputStream, StoredFileMetaInf.class);
+                    } finally {
+                        inputStream.close();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public String asyncSave(InputStream inputStream, FileMetaInf fileMetaInf, RepositoryNotifyCallback notifyCallback) {
+        return asyncSave(fileMetaInf, outputStream -> Common.copyStream(inputStream, outputStream), notifyCallback);
+    }
+
+    @Override
+    public String asyncSave(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback,
+                            RepositoryNotifyCallback notifyCallback) {
+        final String fileId = UuidHelper.getUUIDString();
+        new Thread(() -> {
+            for (LocalRepositoryPath path : this.basePaths) {
+                if (path.isCanWrite()) {
+                    String filePath = getPath(fileId, path.getBasePath());
+                    try {
+                        saveFile(filePath, fileId, fileMetaInf, writeCallback);
+                        log.debug("write file {} to {}", fileId, path.getBasePath());
+                    } catch (Throwable throwable) {
+                        log.error(throwable.getLocalizedMessage(), throwable);
+                        notifyCallback.complete(false, fileId, throwable);
+                        return;
+                    }
+                }
+            }
+            notifyCallback.complete(true, fileId, null);
+        }).start();
         return fileId;
     }
 
     @Override
-    public void get(String fileId, OutputStream outputStream) {
-        get(fileId, new RepositoryReadCallback() {
-            @Override
-            public int read(byte[] buff, int len, long fileSize) {
-                try {
-                    outputStream.write(buff, 0, len);
-                    return 0;
-                } catch (IOException e) {
-                    log.error(e.getLocalizedMessage(), e);
-                    return 1;
+    public String asyncDelete(String fileId, RepositoryNotifyCallback notifyCallback) {
+        new Thread(() -> {
+            for (LocalRepositoryPath path : this.basePaths) {
+                if (path.isCanWrite()) {
+                    String filePath = getPath(fileId, path.getBasePath());
+                    deleteFile(filePath, fileId);
+                    log.debug("delete file {} from {}", fileId, path.getBasePath());
                 }
             }
-        });
-    }
-
-    @Override
-    public void get(String fileId, RepositoryReadCallback callback) {
-        String filePath = getPath(fileId);
-        try {
-            byte[] buff = new byte[4 * 1024];
-            int len = 0;
-            File dataFile = new File(filePath + fileId + ".data");
-            InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
-            try {
-                long fileSize = dataFile.length();
-                while ((len = inputStream.read(buff)) > 0) {
-                    int code = callback.read(buff, len, fileSize);
-                    if (code != 0) {
-                        throw new RuntimeException("fail to read file from repository with error code: " + code);
-                    }
-                }
-            } finally {
-                inputStream.close();
-            }
-        } catch (IOException e) {
-            log.error(e.getLocalizedMessage(), e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public int delete(String fileId) {
-        int re = 0;
-        String filePath = getPath(fileId);
-        re = deleteLocalFile(filePath + fileId + ".data");
-        if (re == 0) {
-            deleteLocalFile(filePath + fileId + ".json");
-        }
-        return re;
-    }
-
-    private int deleteLocalFile(String fileName) {
-        File f = new File(fileName);
-        if (f.exists()) {
-            try {
-                if (f.delete()) {
-                    return 0;
-                } else {
-                    return 9;
-                }
-            } catch (SecurityException e) {
-                log.error(e.getLocalizedMessage(), e);
-                return 99;
-            }
-        } else {
-            return 1;
-        }
-    }
-
-    @Override
-    public StoredFileMetaInf getMetaInf(String fileId) {
-        String filePath = getPath(fileId);
-        File metaFile = new File(filePath + fileId + ".json");
-        if (metaFile.exists()) {
-            try {
-                InputStream inputStream = new FileInputStream(metaFile);
-                try {
-                    return JSON.parseObject(inputStream, StoredFileMetaInf.class);
-                } finally {
-                    inputStream.close();
-                }
-            } catch (IOException e) {
-                log.error(e.getLocalizedMessage(), e);
-                throw new RuntimeException(e);
-            }
-        } else {
-            return null;
-        }
+        }).start();
+        return fileId;
     }
 }

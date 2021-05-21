@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.Cipher;
-import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -34,19 +33,10 @@ public class CtrCryptoReadCallback implements RepositoryReadCallback {
     }
 
     @Override
-    public int read(byte[] buff, int len, long fileSize) {
+    public void read(byte[] buff, int len, long fileSize) throws Throwable {
         byte[] outBuff = new byte[buff.length];
-        try {
-            cryptoCipher.update(buff, 0, len, outBuff, 0);
-            outputStream.write(outBuff, 0, len);
-            return 0;
-        } catch (ShortBufferException e) {
-            log.error(e.getLocalizedMessage(), e);
-            return 1;
-        } catch (IOException e) {
-            log.error(e.getLocalizedMessage(), e);
-            return 2;
-        }
+        cryptoCipher.update(buff, 0, len, outBuff, 0);
+        outputStream.write(outBuff, 0, len);
     }
 
     public void finished() {
