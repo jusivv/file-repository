@@ -59,6 +59,10 @@ public class LocalFileRepository implements IFileRepository {
         this.basePaths = pathMap.values().toArray(new LocalRepositoryPath[0]);
     }
 
+    public LocalFileRepository(String basePath, IPathGenerator ... pathGenerators) {
+        this(new LocalRepositoryPath[]{new LocalRepositoryPath(basePath, true, true)}, pathGenerators);
+    }
+
     private String getPath(String seed, String basePath) {
         StringBuilder path = new StringBuilder(basePath);
         for (IPathGenerator pathGenerator : pathGenerators) {
@@ -88,6 +92,7 @@ public class LocalFileRepository implements IFileRepository {
 
     private void saveFile(String filePath, String fileId, FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback)
             throws Throwable {
+        long beginTime = System.currentTimeMillis();
         File path = new File(filePath);
         if (!path.exists()) {
             path.mkdirs();
@@ -121,6 +126,8 @@ public class LocalFileRepository implements IFileRepository {
         } finally {
             fileWriter.close();
         }
+        log.debug("finish writing file {} to path {} in {} ms.", fileId, filePath,
+                System.currentTimeMillis() - beginTime);
     }
 
     @Override
