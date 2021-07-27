@@ -34,6 +34,7 @@ public class CtrCryptoAccessSample {
         }
         IFileRepository fileRepository = new LocalFileRepository(
                 pathList.toArray(new LocalRepositoryPath[0]),
+//                new DateTimePathGenerator());
                 new HashPathGenerator());
         String fileId = saveFile(fileRepository);
         log.info("file saved, id: {}", fileId);

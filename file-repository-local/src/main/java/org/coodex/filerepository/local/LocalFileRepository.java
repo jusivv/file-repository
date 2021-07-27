@@ -37,8 +37,10 @@ public class LocalFileRepository implements IFileRepository {
                 throw new RuntimeException("Invalid base path: " + path.getBasePath());
             }
             fp = new File(basePath + "." + UuidHelper.getUUIDString());
-            if (!fp.mkdirs()) {
+            if (path.isCanWrite() && !fp.mkdirs()) {
                 throw new RuntimeException("Fail to write directory: " + path.getBasePath());
+            } else {
+                fp.delete();
             }
             LocalRepositoryPath localRepositoryPath = new LocalRepositoryPath(basePath, path.isCanRead(),
                     path.isCanWrite());
