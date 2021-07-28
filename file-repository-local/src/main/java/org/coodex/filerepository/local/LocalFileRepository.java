@@ -143,20 +143,22 @@ public class LocalFileRepository implements IFileRepository {
         for (LocalRepositoryPath path : this.basePaths) {
             if (path.isCanRead()) {
                 String filePath = getPath(fileId, path.getBasePath());
-                byte[] buff = new byte[4 * 1024];
-                int len = 0;
                 File dataFile = new File(filePath + fileId + ".data");
-                InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
-                try {
-                    long fileSize = dataFile.length();
-                    while ((len = inputStream.read(buff)) > 0) {
-                        readCallback.read(buff, len, fileSize);
+                if (dataFile.exists()) {
+                    byte[] buff = new byte[4 * 1024];
+                    int len = 0;
+                    InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
+                    try {
+                        long fileSize = dataFile.length();
+                        while ((len = inputStream.read(buff)) > 0) {
+                            readCallback.read(buff, len, fileSize);
+                        }
+                        log.debug("read file {} from {}", fileId, path.getBasePath());
+                        read = true;
+                        break;
+                    } finally {
+                        inputStream.close();
                     }
-                    log.debug("read file {} from {}", fileId, path.getBasePath());
-                    read = true;
-                    break;
-                } finally {
-                    inputStream.close();
                 }
             }
         }
