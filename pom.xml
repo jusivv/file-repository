@@ -13,6 +13,7 @@
         <module>file-repository-local</module>
         <module>file-repository-ext</module>
         <module>file-repository-sample</module>
+        <module>file-repository-alioss</module>
     </modules>
 
     <properties>
