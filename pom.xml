@@ -7,7 +7,7 @@
     <groupId>org.coodex</groupId>
     <artifactId>file-repository</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.3</version>
+    <version>1.1.4</version>
     <modules>
         <module>file-repository-api</module>
         <module>file-repository-local</module>
