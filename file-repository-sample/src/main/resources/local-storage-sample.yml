@@ -1,0 +1,13 @@
+paths:
+  - location: "/Users/sujiwu/Downloads/fileRepo/save1/"
+    readable: true
+    writable: true
+  - location: "/Users/sujiwu/Downloads/fileRepo/save2/"
+    readable: true
+    writable: false
+  - location: /Users/sujiwu/Downloads/fileRepo/save3/
+    readable: true
+    writable: true
+aesKey: "MDEyMzQ1Njc4OUFCQ0RFRg=="
+file: "/Users/sujiwu/Downloads/yq.passport.jpg"
+output: "/Users/sujiwu/Downloads/fileRepo/get/"

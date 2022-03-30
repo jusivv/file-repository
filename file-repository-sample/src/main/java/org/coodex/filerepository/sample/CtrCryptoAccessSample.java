@@ -26,7 +26,7 @@ public class CtrCryptoAccessSample {
         List<LocalRepositoryPath> pathList = new ArrayList<>();
         for (String pathName : paths) {
             String bathPath = config.getString("file.repository.path." + pathName);
-            pathList.add(new LocalRepositoryPath(
+            pathList.add(LocalRepositoryPath.build(
                     config.getString("file.repository.path." + pathName),
                     config.getBool("file.repository.path." + pathName + ".read", true),
                     config.getBool("file.repository.path." + pathName + ".write", true)

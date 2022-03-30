@@ -20,9 +20,21 @@ import java.util.Locale;
 public class AliOssFileRepository implements IFileRepository {
     private static Logger log = LoggerFactory.getLogger(AliOssFileRepository.class);
 
+    /**
+     * directory for file: none
+     */
     public static final int DIRECTORY_TYPE_NONE = 0;
+    /**
+     * directory for file: divide by year
+     */
     public static final int DIRECTORY_TYPE_YEAR = 1;
+    /**
+     * directory for file: divide by year/month
+     */
     public static final int DIRECTORY_TYPE_MONTH = 2;
+    /**
+     * directory for file: divide by year/month/date
+     */
     public static final int DIRECTORY_TYPE_DAY = 3;
     public static final String NAME_SPLITTER = "/";
 
@@ -112,20 +124,43 @@ public class AliOssFileRepository implements IFileRepository {
     }
 
     @Override
+    public void get(String fileId, long offset, int length, OutputStream outputStream) throws Throwable {
+        get(fileId, offset, length, ((buff, len, fileSize) -> outputStream.write(buff, 0, len)));
+    }
+
+    @Override
     public void get(String fileId, RepositoryReadCallback readCallback) throws Throwable {
+        get(fileId, 0, 0, readCallback);
+    }
+
+    @Override
+    public void get(String fileId, long offset, int length, RepositoryReadCallback readCallback) throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             OSSObject ossObject = ossClient.getObject(bucketName, fileId);
             if (ossObject == null) {
                 throw new RuntimeException("OSS object not found.");
             }
+            byte[] buff = new byte[4 * 1024];
+            int len = 0;
             InputStream inputStream = ossObject.getObjectContent();
             try {
-                byte[] buff = new byte[4 * 1024];
-                int len = 0;
                 long size = ossObject.getObjectMetadata().getContentLength();
+                if (length > 0) {
+                    size = Math.min(size, length);
+                }
+                if (offset > 0) {
+                    inputStream.skip(offset);
+                }
+                long restSize = size;
                 while ((len = inputStream.read(buff)) > 0) {
-                    readCallback.read(buff, len, size);
+                    if (restSize > len) {
+                        readCallback.read(buff, len, size);
+                    } else {
+                        readCallback.read(buff, (int) restSize, size);
+                        break;
+                    }
+                    restSize -= len;
                 }
             } finally {
                 ossObject.close();
