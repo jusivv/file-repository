@@ -6,6 +6,7 @@ import org.coodex.filerepository.api.IFileRepository;
 import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
+import org.coodex.filerepository.local.LocalRepositoryPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -35,7 +36,7 @@ public class LocalStorageSample {
             return;
         }
 
-        getFile(fileId, fileMetaInf.getFileName() + "." + fileMetaInf.getExtName(), 0L, 0,
+        getFile(fileId, fileMetaInf.getFileName() + "." + fileMetaInf.getExtName(), 0L, 1024 * 3,
                 fileRepository, config);
         log.info("get file, id: {}", fileId);
         log.info("continue ? (y/n)");
@@ -50,9 +51,20 @@ public class LocalStorageSample {
 
     private static LocalStorageSampleConfig loadConfig() {
         Yaml yaml = new Yaml();
-        return yaml.loadAs(
+        LocalStorageSampleConfig config = yaml.loadAs(
                 LocalStorageSample.class.getClassLoader().getResourceAsStream("local-storage-sample.yml"),
                 LocalStorageSampleConfig.class);
+        for (LocalRepositoryPath path : config.getPaths()) {
+            File basePath = new File(path.getLocation());
+            if (!basePath.exists()) {
+                basePath.mkdirs();
+            }
+        }
+        File outputDir = new File(config.getOutput());
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+        return config;
     }
 
     private static String saveFile(IFileRepository fileRepository, LocalStorageSampleConfig config) throws Throwable {
