@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,54 +83,51 @@ public class LocalFileRepository implements IFileRepository {
     @Override
     public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback) throws Throwable {
         String fileId = UuidHelper.getUUIDString();
-        for (LocalRepositoryPath path : this.basePaths) {
-            if (path.isCanWrite()) {
-                String filePath = getPath(fileId, path.getBasePath());
-                saveFile(filePath, fileId, fileMetaInf, writeCallback);
-                log.debug("write file {} to {}", fileId, path.getBasePath());
-            }
-        }
+        saveFile(fileId, fileMetaInf, writeCallback);
         return fileId;
     }
 
-    private void saveFile(String filePath, String fileId, FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback)
+    private void saveFile(String fileId, FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback)
             throws Throwable {
-        long beginTime = System.currentTimeMillis();
-        File path = new File(filePath);
-        if (!path.exists()) {
-            path.mkdirs();
-        }
-        File dataFile = new File(filePath + fileId + ".data");
-        File metaFile = new File(filePath + fileId + ".json");
-        if (!dataFile.exists()) {
-            dataFile.createNewFile();
-        }
-        // use buffer
+        FileOutputStreamWithMessageDigest digestOutputStream = null;
+        MultipleOutputStream dataOutputStream = new MultipleOutputStream();
+        MultipleOutputStream metaOutputStream = new MultipleOutputStream();
         String digestAlgorithm = profile.getString("digestAlgorithm", "MD5");
-        FileOutputStreamWithMessageDigest digestOutputStream = new FileOutputStreamWithMessageDigest(dataFile,
-                MessageDigest.getInstance(digestAlgorithm));
-        OutputStream outputStream = new BufferedOutputStream(digestOutputStream);
-        try {
-            writeCallback.write(outputStream);
-        } finally {
-            outputStream.close();
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isCanWrite()) {
+                String filePath = getPath(fileId, path.getBasePath());
+                log.debug("save file {} to {}", fileId, filePath);
+                File parentPath = new File(filePath);
+                if (!parentPath.exists()) {
+                    parentPath.mkdirs();
+                }
+                String dataFilePath = filePath + fileId + ".data";
+                if (digestOutputStream == null) {
+                    digestOutputStream = new FileOutputStreamWithMessageDigest(new File(dataFilePath),
+                            MessageDigest.getInstance(digestAlgorithm));
+                    dataOutputStream.addOutputStream(dataFilePath, new BufferedOutputStream(digestOutputStream));
+                } else {
+                    dataOutputStream.addOutputStream(dataFilePath, new BufferedOutputStream(new FileOutputStream(dataFilePath)));
+                }
+                String metaFilePath = filePath + fileId + ".json";
+                metaOutputStream.addOutputStream(metaFilePath, new BufferedOutputStream(new FileOutputStream(metaFilePath)));
+            }
         }
-
-        if (!metaFile.exists()) {
-            metaFile.createNewFile();
+        if (digestOutputStream != null) {
+            try {
+                writeCallback.write(dataOutputStream);
+            } finally {
+                dataOutputStream.close();
+            }
+            StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
+            storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
+            storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
+            try {
+                metaOutputStream.write(JSON.toJSONString(storedFileMetaInf).getBytes(StandardCharsets.UTF_8));
+            } finally {
+                metaOutputStream.close();
+            }
         }
-        StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
-        storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
-        storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
-        FileWriter fileWriter = new FileWriter(metaFile);
-        try {
-            fileWriter.write(JSON.toJSONString(storedFileMetaInf));
-            fileWriter.flush();
-        } finally {
-            fileWriter.close();
-        }
-        log.debug("finish writing file {} to path {} in {} ms.", fileId, filePath,
-                System.currentTimeMillis() - beginTime);
     }
 
     @Override
@@ -220,20 +218,13 @@ public class LocalFileRepository implements IFileRepository {
                             RepositoryNotifyCallback notifyCallback) {
         final String fileId = UuidHelper.getUUIDString();
         new Thread(() -> {
-            for (LocalRepositoryPath path : this.basePaths) {
-                if (path.isCanWrite()) {
-                    String filePath = getPath(fileId, path.getBasePath());
-                    try {
-                        saveFile(filePath, fileId, fileMetaInf, writeCallback);
-                        log.debug("write file {} to {}", fileId, path.getBasePath());
-                    } catch (Throwable throwable) {
-                        log.error(throwable.getLocalizedMessage(), throwable);
-                        notifyCallback.complete(false, fileId, throwable);
-                        return;
-                    }
-                }
+            try {
+                saveFile(fileId, fileMetaInf, writeCallback);
+                notifyCallback.complete(true, fileId, null);
+            } catch (Throwable e) {
+                log.error(e.getLocalizedMessage(), e);
+                notifyCallback.complete(false, fileId, e);
             }
-            notifyCallback.complete(true, fileId, null);
         }).start();
         return fileId;
     }
