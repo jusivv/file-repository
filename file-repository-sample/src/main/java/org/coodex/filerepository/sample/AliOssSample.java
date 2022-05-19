@@ -16,18 +16,21 @@ public class AliOssSample {
     private static Logger log = LoggerFactory.getLogger(AliOssSample.class);
 
     public static void main(String[] args) throws Throwable {
+        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
         String endpoint = "oss-cn-beijing.aliyuncs.com";
         String accessKeyId = "";
         String accessKeySecret = "";
         String bucketName = "etollpay";
-        IFileRepository fileRepository = new AliOssFileRepository(endpoint, accessKeyId, accessKeySecret, bucketName,
-                AliOssFileRepository.DIRECTORY_TYPE_DAY);
-//        testSave(fileRepository);
-        testGetTagging(fileRepository);
+        IFileRepository fileRepository = new AliOssFileRepository(config.getAliOss().getEndpoint(),
+                config.getAliOss().getAccessKeyId(), config.getAliOss().getAccessKeySecret(),
+                config.getAliOss().getBucketName(), AliOssFileRepository.DIRECTORY_TYPE_DAY);
+        String fileId = testSave(fileRepository, config);
+        log.debug("file id: {}", fileId);
+
     }
 
-    private static void testSave(IFileRepository fileRepository) throws Throwable {
-        File file = new File("/Users/sujiwu/Downloads/aliyun-oss-java-sdk-demo-mvn-3.10.2.zip");
+    private static String testSave(IFileRepository fileRepository, SampleConfig config) throws Throwable {
+        File file = new File(config.getFile());
         String fileName = file.getName();
         int lastIndex = fileName.lastIndexOf(".");
         FileMetaInf fileMetaInf = new FileMetaInf();
@@ -38,15 +41,21 @@ public class AliOssSample {
         InputStream is = new FileInputStream(file);
         try {
             String fileId = fileRepository.save(is, fileMetaInf);
-            log.debug("file id: {}", fileId);
+
+            return fileId;
         } finally {
             is.close();
         }
     }
 
-    private static void testGetTagging(IFileRepository fileRepository) throws Throwable {
-        String fileId = "2021/08/05/63a62922560c439891a330368aa16b62";
+    private static void testGetTagging(String fileId, IFileRepository fileRepository) throws Throwable {
         StoredFileMetaInf storedFileMetaInf = fileRepository.getMetaInf(fileId);
         log.debug("stored meta-inf: {}", JSON.toJSONString(storedFileMetaInf));
+    }
+
+    private static void testGet(String fileId, IFileRepository fileRepository, SampleConfig config) throws Throwable {
+        StoredFileMetaInf storedFileMetaInf = fileRepository.getMetaInf(fileId);
+        log.debug("stored meta-inf: {}", JSON.toJSONString(storedFileMetaInf));
+
     }
 }

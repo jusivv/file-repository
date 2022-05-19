@@ -25,7 +25,7 @@ public class CtrCryptoAccessSample {
     );
 
     public static void main(String[] args) throws Throwable {
-        LocalStorageSampleConfig config = LocalStorageSampleConfig.loadFrom("local-storage-sample.yml");
+        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
         IFileRepository fileRepository = new LocalFileRepository(config.getPaths(),
 //                new DateTimePathGenerator());
                 new HashPathGenerator());
@@ -34,14 +34,6 @@ public class CtrCryptoAccessSample {
         Scanner input = new Scanner(System.in);
         log.info("continue ? (y/n)");
         String i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
-
-        StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
-        log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
-        log.info("continue ? (y/n)");
-        i = input.next();
         if (!i.toLowerCase().equals("y")) {
             return;
         }
@@ -58,7 +50,7 @@ public class CtrCryptoAccessSample {
         log.info("store file deleted, fileId: {}", fileId);
     }
 
-    private static String saveFile(IFileRepository fileRepository, LocalStorageSampleConfig config) throws Throwable {
+    private static String saveFile(IFileRepository fileRepository, SampleConfig config) throws Throwable {
         File file = new File(config.getFile());
         FileMetaInf fileMetaInf = new FileMetaInf();
         fileMetaInf.setClientId(CtrCryptoAccessSample.class.getSimpleName());
@@ -81,8 +73,9 @@ public class CtrCryptoAccessSample {
     }
 
     private static void getFile(String fileId, IFileRepository fileRepository,
-                                LocalStorageSampleConfig config) throws Throwable {
+                                SampleConfig config) throws Throwable {
         StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
+        log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
                 + (config.getOutput().endsWith(File.separator) ? "" : File.separator)
                 + fileMetaInf.getFileName() + "." + fileMetaInf.getExtName();

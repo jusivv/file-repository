@@ -5,7 +5,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 
-public class LocalStorageSampleConfig {
+public class SampleConfig {
 
     /**
      * base paths for file to save
@@ -24,11 +24,13 @@ public class LocalStorageSampleConfig {
      */
     private String output;
 
-    public static LocalStorageSampleConfig loadFrom(String yamlFileName) {
+    private AliOssConfig aliOss;
+
+    public static SampleConfig loadFrom(String yamlFileName) {
         Yaml yaml = new Yaml();
-        LocalStorageSampleConfig config = yaml.loadAs(
+        SampleConfig config = yaml.loadAs(
                 LocalStorageSample.class.getClassLoader().getResourceAsStream(yamlFileName),
-                LocalStorageSampleConfig.class);
+                SampleConfig.class);
         for (LocalRepositoryPath path : config.getPaths()) {
             File basePath = new File(path.getLocation());
             if (!basePath.exists()) {
@@ -72,5 +74,13 @@ public class LocalStorageSampleConfig {
 
     public void setOutput(String output) {
         this.output = output;
+    }
+
+    public AliOssConfig getAliOss() {
+        return aliOss;
+    }
+
+    public void setAliOss(AliOssConfig aliOss) {
+        this.aliOss = aliOss;
     }
 }

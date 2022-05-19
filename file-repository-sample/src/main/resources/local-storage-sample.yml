@@ -11,3 +11,8 @@ paths:
 aesKey: "MDEyMzQ1Njc4OUFCQ0RFRg=="
 file: "/Users/sujiwu/Downloads/dlzx.logo.jpg"
 output: "/Users/sujiwu/Downloads/fileRepo/get/"
+aliOss:
+  endpoint: "oss-cn-beijing.aliyuncs.com"
+  accessKeyId: ""
+  accessKeySecret: ""
+  bucketName: ""

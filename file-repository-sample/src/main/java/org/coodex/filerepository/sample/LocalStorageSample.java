@@ -16,7 +16,7 @@ public class LocalStorageSample {
     private static Logger log = LoggerFactory.getLogger(LocalStorageSample.class);
 
     public static void main(String[] args) throws Throwable {
-        LocalStorageSampleConfig config = LocalStorageSampleConfig.loadFrom("local-storage-sample.yml");
+        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
         LocalFileRepository fileRepository = new LocalFileRepository(config.getPaths(), new HashPathGenerator());
         String fileId = saveFile(fileRepository, config);
         log.info("file saved, id: {}", fileId);
@@ -26,16 +26,8 @@ public class LocalStorageSample {
         if (!i.toLowerCase().equals("y")) {
             return;
         }
-        StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
-        log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
-        log.info("continue ? (y/n)");
-        i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
 
-        getFile(fileId, fileMetaInf.getFileName() + "." + fileMetaInf.getExtName(), 0L, 1024 * 3,
-                fileRepository, config);
+        getFile(fileId, 0L, 1024 * 3, fileRepository, config);
         log.info("get file, id: {}", fileId);
         log.info("continue ? (y/n)");
         i = input.next();
@@ -47,7 +39,7 @@ public class LocalStorageSample {
         log.info("store file deleted, fileId: {}", fileId);
     }
 
-    private static String saveFile(IFileRepository fileRepository, LocalStorageSampleConfig config) throws Throwable {
+    private static String saveFile(IFileRepository fileRepository, SampleConfig config) throws Throwable {
         File file = new File(config.getFile());
         FileMetaInf fileMetaInf = new FileMetaInf();
         fileMetaInf.setClientId(LocalStorageSample.class.getSimpleName());
@@ -72,9 +64,15 @@ public class LocalStorageSample {
         return fileId;
     }
 
-    private static void getFile(String fileId, String fileName, long offset, int length, IFileRepository fileRepository,
-                                LocalStorageSampleConfig config) throws Throwable {
-        File file = new File(config.getOutput() + "/" + fileName);
+    private static void getFile(String fileId, long offset, int length, IFileRepository fileRepository,
+                                SampleConfig config) throws Throwable {
+        StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
+        log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
+        String outputFile = config.getOutput()
+                + (config.getOutput().endsWith(File.separator) ? "" : File.separator)
+                + fileMetaInf.getFileName() + "." + fileMetaInf.getExtName();
+        log.debug("get file to: {}", outputFile);
+        File file = new File(outputFile);
         File filePath = file.getParentFile();
         if (!filePath.exists()) {
             filePath.mkdirs();
