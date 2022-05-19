@@ -15,6 +15,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.util.Properties;
 
+@Deprecated
 public class CtrCryptoReadCallback implements RepositoryReadCallback {
     private static Logger log = LoggerFactory.getLogger(CtrCryptoReadCallback.class);
 

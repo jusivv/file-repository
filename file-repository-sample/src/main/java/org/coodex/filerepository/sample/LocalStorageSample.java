@@ -6,10 +6,8 @@ import org.coodex.filerepository.api.IFileRepository;
 import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
-import org.coodex.filerepository.local.LocalRepositoryPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
 import java.util.Scanner;
@@ -18,7 +16,7 @@ public class LocalStorageSample {
     private static Logger log = LoggerFactory.getLogger(LocalStorageSample.class);
 
     public static void main(String[] args) throws Throwable {
-        LocalStorageSampleConfig config = loadConfig();
+        LocalStorageSampleConfig config = LocalStorageSampleConfig.loadFrom("local-storage-sample.yml");
         LocalFileRepository fileRepository = new LocalFileRepository(config.getPaths(), new HashPathGenerator());
         String fileId = saveFile(fileRepository, config);
         log.info("file saved, id: {}", fileId);
@@ -47,24 +45,6 @@ public class LocalStorageSample {
 
         deleteFile(fileId, fileRepository);
         log.info("store file deleted, fileId: {}", fileId);
-    }
-
-    private static LocalStorageSampleConfig loadConfig() {
-        Yaml yaml = new Yaml();
-        LocalStorageSampleConfig config = yaml.loadAs(
-                LocalStorageSample.class.getClassLoader().getResourceAsStream("local-storage-sample.yml"),
-                LocalStorageSampleConfig.class);
-        for (LocalRepositoryPath path : config.getPaths()) {
-            File basePath = new File(path.getLocation());
-            if (!basePath.exists()) {
-                basePath.mkdirs();
-            }
-        }
-        File outputDir = new File(config.getOutput());
-        if (!outputDir.exists()) {
-            outputDir.mkdirs();
-        }
-        return config;
     }
 
     private static String saveFile(IFileRepository fileRepository, LocalStorageSampleConfig config) throws Throwable {

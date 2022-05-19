@@ -6,6 +6,7 @@ import javax.crypto.spec.IvParameterSpec;
 import java.nio.charset.Charset;
 import java.util.Properties;
 
+@Deprecated
 public class CtrCryptoParameter {
     public static final String TRANSFORMATION = "AES/CTR/NoPadding";
 

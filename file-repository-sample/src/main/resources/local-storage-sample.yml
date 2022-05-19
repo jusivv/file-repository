@@ -5,9 +5,9 @@ paths:
   - location: "/Users/sujiwu/Downloads/fileRepo/save2/"
     readable: true
     writable: false
-  - location: /Users/sujiwu/Downloads/fileRepo/save3/
+  - location: "/Users/sujiwu/Downloads/fileRepo/save3/"
     readable: true
     writable: true
 aesKey: "MDEyMzQ1Njc4OUFCQ0RFRg=="
-file: "/Users/sujiwu/Downloads/yq.passport.jpg"
+file: "/Users/sujiwu/Downloads/dlzx.logo.jpg"
 output: "/Users/sujiwu/Downloads/fileRepo/get/"

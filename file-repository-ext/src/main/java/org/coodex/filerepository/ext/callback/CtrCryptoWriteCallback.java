@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.Key;
 
+@Deprecated
 public class CtrCryptoWriteCallback implements RepositoryWriteCallback {
     private static Logger log = LoggerFactory.getLogger(CtrCryptoWriteCallback.class);
 
