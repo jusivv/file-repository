@@ -1,6 +1,7 @@
-package org.coodex.filerepository.sample;
+package org.coodex.filerepository.sample.conf;
 
 import org.coodex.filerepository.local.LocalRepositoryPath;
+import org.coodex.filerepository.sample.LocalStorageSample;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;

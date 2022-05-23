@@ -9,14 +9,14 @@ import org.coodex.filerepository.ext.callback.crypto.CryptoReadCallback;
 import org.coodex.filerepository.ext.callback.crypto.CryptoWriteCallback;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
+import org.coodex.filerepository.sample.conf.SampleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.Base64;
-import java.util.Scanner;
 
-public class CtrCryptoAccessSample {
+public class CtrCryptoAccessSample implements IFileRespositorySample {
     private static Logger log = LoggerFactory.getLogger(CtrCryptoAccessSample.class);
 
     private static final CryptoParameter CRYPTO_PARAMETER = CryptoParameter.buildCtrCryptoParameter(
@@ -24,33 +24,19 @@ public class CtrCryptoAccessSample {
             null
     );
 
-    public static void main(String[] args) throws Throwable {
-        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
-        IFileRepository fileRepository = new LocalFileRepository(config.getPaths(),
+    private IFileRepository fileRepository;
+    private SampleConfig config;
+
+    @Override
+    public void build(SampleConfig config) {
+        this.config = config;
+        this.fileRepository = new LocalFileRepository(config.getPaths(),
 //                new DateTimePathGenerator());
                 new HashPathGenerator());
-        String fileId = saveFile(fileRepository, config);
-        log.info("file saved, id: {}", fileId);
-        Scanner input = new Scanner(System.in);
-        log.info("continue ? (y/n)");
-        String i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
-
-        getFile(fileId, fileRepository, config);
-        log.info("get file, id: {}", fileId);
-        log.info("continue ? (y/n)");
-        i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
-
-        deleteFile(fileId, fileRepository);
-        log.info("store file deleted, fileId: {}", fileId);
     }
 
-    private static String saveFile(IFileRepository fileRepository, SampleConfig config) throws Throwable {
+    @Override
+    public String saveFile() throws Throwable {
         File file = new File(config.getFile());
         FileMetaInf fileMetaInf = new FileMetaInf();
         fileMetaInf.setClientId(CtrCryptoAccessSample.class.getSimpleName());
@@ -60,38 +46,30 @@ public class CtrCryptoAccessSample {
         fileMetaInf.setFileSize(file.length());
         InputStream inputStream = new FileInputStream(file);
         try {
-            return fileRepository.save(fileMetaInf,
+            String fileId = fileRepository.save(fileMetaInf,
                     new CryptoWriteCallback(inputStream, Base64.getDecoder().decode(config.getAesKey()),
                             CRYPTO_PARAMETER));
+            log.debug("file saved, id: {}", fileId);
+            return fileId;
         } finally {
             inputStream.close();
         }
     }
 
-    private static StoredFileMetaInf getFileMetaInf(String fileId, IFileRepository fileRepository) throws Throwable {
-        return fileRepository.getMetaInf(fileId);
-    }
-
-    private static void getFile(String fileId, IFileRepository fileRepository,
-                                SampleConfig config) throws Throwable {
+    @Override
+    public void readFile(String fileId) throws Throwable {
         StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
         log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
                 + (config.getOutput().endsWith(File.separator) ? "" : File.separator)
                 + fileMetaInf.getFileName() + "." + fileMetaInf.getExtName();
-        log.debug("get file to: {}", outputFile);
-        File file = new File(outputFile);
-        File filePath = file.getParentFile();
-        if (!filePath.exists()) {
-            filePath.mkdirs();
-        }
-        file.createNewFile();
-        OutputStream outputStream = new FileOutputStream(file);
+        OutputStream outputStream = new FileOutputStream(outputFile);
         CryptoReadCallback readCallback = new CryptoReadCallback(outputStream,
                 Base64.getDecoder().decode(config.getAesKey()),
                 CRYPTO_PARAMETER);
         try {
             fileRepository.get(fileId, readCallback);
+            log.debug("read file to: {}", outputFile);
         } finally {
             readCallback.finished();
             outputStream.flush();
@@ -99,7 +77,9 @@ public class CtrCryptoAccessSample {
         }
     }
 
-    private static void deleteFile(String fileId, IFileRepository fileRepository) throws Throwable {
+    @Override
+    public void deleteFile(String fileId) throws Throwable {
         fileRepository.delete(fileId);
+        log.debug("file deleted, id: {}", fileId);
     }
 }

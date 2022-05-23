@@ -1,4 +1,4 @@
-package org.coodex.filerepository.sample;
+package org.coodex.filerepository.sample.conf;
 
 public class AliOssConfig {
     private String endpoint;

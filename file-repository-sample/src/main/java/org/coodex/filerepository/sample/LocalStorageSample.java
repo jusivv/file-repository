@@ -6,40 +6,26 @@ import org.coodex.filerepository.api.IFileRepository;
 import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
+import org.coodex.filerepository.sample.conf.SampleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.Scanner;
 
-public class LocalStorageSample {
+public class LocalStorageSample implements IFileRespositorySample {
     private static Logger log = LoggerFactory.getLogger(LocalStorageSample.class);
 
-    public static void main(String[] args) throws Throwable {
-        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
-        LocalFileRepository fileRepository = new LocalFileRepository(config.getPaths(), new HashPathGenerator());
-        String fileId = saveFile(fileRepository, config);
-        log.info("file saved, id: {}", fileId);
-        Scanner input = new Scanner(System.in);
-        log.info("continue ? (y/n)");
-        String i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
+    private IFileRepository fileRepository;
+    private SampleConfig config;
 
-        getFile(fileId, 0L, 1024 * 3, fileRepository, config);
-        log.info("get file, id: {}", fileId);
-        log.info("continue ? (y/n)");
-        i = input.next();
-        if (!i.toLowerCase().equals("y")) {
-            return;
-        }
-
-        deleteFile(fileId, fileRepository);
-        log.info("store file deleted, fileId: {}", fileId);
+    @Override
+    public void build(SampleConfig config) {
+        this.config = config;
+        this.fileRepository = new LocalFileRepository(config.getPaths(), new HashPathGenerator());
     }
 
-    private static String saveFile(IFileRepository fileRepository, SampleConfig config) throws Throwable {
+    @Override
+    public String saveFile() throws Throwable {
         File file = new File(config.getFile());
         FileMetaInf fileMetaInf = new FileMetaInf();
         fileMetaInf.setClientId(LocalStorageSample.class.getSimpleName());
@@ -64,8 +50,10 @@ public class LocalStorageSample {
         return fileId;
     }
 
-    private static void getFile(String fileId, long offset, int length, IFileRepository fileRepository,
-                                SampleConfig config) throws Throwable {
+    @Override
+    public void readFile(String fileId) throws Throwable {
+        long offset = 0;
+        int length = 4 * 1024;
         StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
         log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
@@ -81,13 +69,15 @@ public class LocalStorageSample {
         OutputStream outputStream = new FileOutputStream(file);
         try {
             fileRepository.get(fileId, offset, length, outputStream);
+            log.debug("read file offset: {}, length: {}, fileId: {}", offset, length, fileId);
         } finally {
             outputStream.flush();
             outputStream.close();
         }
     }
 
-    private static void deleteFile(String fileId, IFileRepository fileRepository) throws Throwable {
+    @Override
+    public void deleteFile(String fileId) throws Throwable {
         fileRepository.asyncDelete(fileId, ((success, fileId1, t) -> {
             if (!success) {
                 log.error(t.getLocalizedMessage(), t);

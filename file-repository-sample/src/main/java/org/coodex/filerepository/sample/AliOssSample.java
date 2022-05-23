@@ -4,32 +4,32 @@ import com.alibaba.fastjson.JSON;
 import org.coodex.file.repository.alioss.AliOssFileRepository;
 import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.filerepository.api.IFileRepository;
-import org.coodex.filerepository.api.StoredFileMetaInf;
+import org.coodex.filerepository.sample.conf.SampleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 
-public class AliOssSample {
+public class AliOssSample implements IFileRespositorySample {
     private static Logger log = LoggerFactory.getLogger(AliOssSample.class);
 
-    public static void main(String[] args) throws Throwable {
-        SampleConfig config = SampleConfig.loadFrom("local-storage-sample.yml");
-        String endpoint = "oss-cn-beijing.aliyuncs.com";
-        String accessKeyId = "";
-        String accessKeySecret = "";
-        String bucketName = "etollpay";
-        IFileRepository fileRepository = new AliOssFileRepository(config.getAliOss().getEndpoint(),
+    private IFileRepository fileRepository;
+
+    private SampleConfig config;
+
+    @Override
+    public void build(SampleConfig config) {
+        this.config = config;
+        this.fileRepository = new AliOssFileRepository(config.getAliOss().getEndpoint(),
                 config.getAliOss().getAccessKeyId(), config.getAliOss().getAccessKeySecret(),
                 config.getAliOss().getBucketName(), AliOssFileRepository.DIRECTORY_TYPE_DAY);
-        String fileId = testSave(fileRepository, config);
-        log.debug("file id: {}", fileId);
-
     }
 
-    private static String testSave(IFileRepository fileRepository, SampleConfig config) throws Throwable {
+    @Override
+    public String saveFile() throws Throwable {
         File file = new File(config.getFile());
         String fileName = file.getName();
         int lastIndex = fileName.lastIndexOf(".");
@@ -41,21 +41,34 @@ public class AliOssSample {
         InputStream is = new FileInputStream(file);
         try {
             String fileId = fileRepository.save(is, fileMetaInf);
-
+            log.debug("file saved, id: {}", fileId);
             return fileId;
         } finally {
             is.close();
         }
     }
 
-    private static void testGetTagging(String fileId, IFileRepository fileRepository) throws Throwable {
-        StoredFileMetaInf storedFileMetaInf = fileRepository.getMetaInf(fileId);
-        log.debug("stored meta-inf: {}", JSON.toJSONString(storedFileMetaInf));
+    @Override
+    public void readFile(String fileId) throws Throwable {
+        FileMetaInf metaInf = fileRepository.getMetaInf(fileId);
+        log.debug("file meta-inf: {}", JSON.toJSONString(metaInf));
+        String outputPath = config.getOutput();
+        if (!outputPath.endsWith(File.separator)) {
+            outputPath += File.separator;
+        }
+        FileOutputStream outputStream = new FileOutputStream(outputPath + metaInf.getFileName() + "."
+                + metaInf.getExtName());
+        try {
+            fileRepository.get(fileId, outputStream);
+            log.debug("read file to {}", outputPath);
+        } finally {
+            outputStream.close();
+        }
     }
 
-    private static void testGet(String fileId, IFileRepository fileRepository, SampleConfig config) throws Throwable {
-        StoredFileMetaInf storedFileMetaInf = fileRepository.getMetaInf(fileId);
-        log.debug("stored meta-inf: {}", JSON.toJSONString(storedFileMetaInf));
-
+    @Override
+    public void deleteFile(String fileId) throws Throwable {
+        fileRepository.delete(fileId);
+        log.debug("file deleted, id: {}", fileId);
     }
 }
