@@ -1,4 +1,4 @@
-package org.coodex.filerepository.ext.callback.crypto;
+package org.coodex.filerepository.ext.crypto;
 
 import org.apache.commons.crypto.stream.CryptoOutputStream;
 import org.coodex.filerepository.api.RepositoryWriteCallback;

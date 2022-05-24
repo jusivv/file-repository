@@ -1,4 +1,4 @@
-package org.coodex.filerepository.local;
+package org.coodex.filerepository.ext.digest;
 
 import org.coodex.util.Common;
 

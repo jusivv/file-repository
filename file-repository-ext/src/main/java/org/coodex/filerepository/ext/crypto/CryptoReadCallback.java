@@ -1,4 +1,4 @@
-package org.coodex.filerepository.ext.callback.crypto;
+package org.coodex.filerepository.ext.crypto;
 
 import org.apache.commons.crypto.cipher.CryptoCipher;
 import org.apache.commons.crypto.utils.Utils;

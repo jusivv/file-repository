@@ -3,7 +3,6 @@ package org.coodex.filerepository.sample;
 import com.alibaba.fastjson.JSON;
 import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.filerepository.api.IFileRepository;
-import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
 import org.coodex.filerepository.sample.conf.SampleConfig;
@@ -54,7 +53,7 @@ public class LocalStorageSample implements IFileRespositorySample {
     public void readFile(String fileId) throws Throwable {
         long offset = 0;
         int length = 4 * 1024;
-        StoredFileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
+        FileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
         log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
                 + (config.getOutput().endsWith(File.separator) ? "" : File.separator)
