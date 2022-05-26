@@ -6,6 +6,7 @@ import org.coodex.filerepository.api.IFileRepository;
 import org.coodex.filerepository.ext.crypto.CryptoParameter;
 import org.coodex.filerepository.ext.crypto.DecryptOutputStream;
 import org.coodex.filerepository.ext.crypto.EncryptInputStream;
+import org.coodex.filerepository.local.ClientPathGenerator;
 import org.coodex.filerepository.local.HashPathGenerator;
 import org.coodex.filerepository.local.LocalFileRepository;
 import org.coodex.filerepository.sample.conf.SampleConfig;
@@ -30,6 +31,7 @@ public class CtrCryptoAccessSample implements IFileRespositorySample {
     public void build(SampleConfig config) {
         this.config = config;
         this.fileRepository = new LocalFileRepository(config.getPaths(),
+                new ClientPathGenerator(),
 //                new DateTimePathGenerator());
                 new HashPathGenerator());
     }

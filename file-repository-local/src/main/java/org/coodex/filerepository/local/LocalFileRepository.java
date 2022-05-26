@@ -68,16 +68,25 @@ public class LocalFileRepository extends AbstractFileRepository {
 
     private String getPath(String seed, String basePath) {
         StringBuilder path = new StringBuilder(basePath);
+        if (!basePath.endsWith(File.separator)) {
+            path.append(File.separator);
+        }
         for (IPathGenerator pathGenerator : pathGenerators) {
             String subPath = pathGenerator.getPath(seed);
-            path.append(subPath.endsWith(File.separator) ? subPath : subPath + File.separatorChar);
+            if (Common.isBlank(subPath)) {
+                continue;
+            }
+            if (subPath.startsWith(File.separator)) {
+                subPath = subPath.substring(1);
+            }
+            path.append(subPath.endsWith(File.separator) ? subPath : subPath + File.separator);
         }
         return path.toString();
     }
 
     @Override
     protected String generateFileId(String clientId) {
-        return UUIDHelper.getUUIDString();
+        return (Common.isBlank(clientId) ? "" : clientId + "$") + UUIDHelper.getUUIDString();
     }
 
     @Override

@@ -6,7 +6,7 @@ import org.coodex.util.Common;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-
+@Deprecated
 public class CryptoWriteCallback implements RepositoryWriteCallback {
 
     private InputStream inputStream;

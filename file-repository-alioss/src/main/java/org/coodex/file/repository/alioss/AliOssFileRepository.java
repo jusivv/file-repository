@@ -42,20 +42,27 @@ public class AliOssFileRepository extends AbstractFileRepository {
 
     private int directoryType = DIRECTORY_TYPE_NONE;
 
+    private boolean divideByClient;
+
     private OSSClientBuilder ossClientBuilder;
 
-    public AliOssFileRepository(String endpoint, String accessKeyId, String accessKeySecret, String bucketName,
-                                int directoryType) {
-        this.endpoint = endpoint;
-        this.accessKeyId = accessKeyId;
-        this.accessKeySecret = accessKeySecret;
-        this.bucketName = bucketName;
+    public AliOssFileRepository(AliOssConfig aliOssConfig, int directoryType, boolean divideByClient) {
+        this.endpoint = aliOssConfig.getEndpoint();
+        this.accessKeyId = aliOssConfig.getAccessKeyId();
+        this.accessKeySecret = aliOssConfig.getAccessKeySecret();
+        this.bucketName = aliOssConfig.getBucketName();
         this.directoryType = directoryType;
+        this.divideByClient = divideByClient;
         ossClientBuilder = new OSSClientBuilder();
     }
 
-    public AliOssFileRepository(String endpoint, String accessKeyId, String accessKeySecret, String bucketName) {
-        this(endpoint, accessKeyId, accessKeySecret, bucketName, DIRECTORY_TYPE_NONE);
+    /**
+     * Constructor
+     * file divide by client
+     * @param aliOssConfig
+     */
+    public AliOssFileRepository(AliOssConfig aliOssConfig) {
+        this(aliOssConfig, DIRECTORY_TYPE_NONE, true);
     }
 
     private String adjustDate(int date) {
@@ -69,6 +76,9 @@ public class AliOssFileRepository extends AbstractFileRepository {
     @Override
     protected String generateFileId(String clientId) {
         StringBuilder sb = new StringBuilder();
+        if (divideByClient) {
+            sb.append(clientId).append(NAME_SPLITTER);
+        }
         Calendar calendar = Calendar.getInstance(Locale.CHINA);
         if (directoryType > DIRECTORY_TYPE_NONE) {
             sb.append(calendar.get(Calendar.YEAR)).append(NAME_SPLITTER);

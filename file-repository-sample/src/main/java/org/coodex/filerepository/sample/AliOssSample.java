@@ -23,9 +23,7 @@ public class AliOssSample implements IFileRespositorySample {
     @Override
     public void build(SampleConfig config) {
         this.config = config;
-        this.fileRepository = new AliOssFileRepository(config.getAliOss().getEndpoint(),
-                config.getAliOss().getAccessKeyId(), config.getAliOss().getAccessKeySecret(),
-                config.getAliOss().getBucketName(), AliOssFileRepository.DIRECTORY_TYPE_DAY);
+        this.fileRepository = new AliOssFileRepository(config.getAliOss());
     }
 
     @Override

@@ -1,10 +1,22 @@
-package org.coodex.filerepository.sample.conf;
+package org.coodex.file.repository.alioss;
 
+/**
+ * Ali OSS configuration
+ */
 public class AliOssConfig {
     private String endpoint;
     private String accessKeyId;
     private String accessKeySecret;
     private String bucketName;
+
+    public AliOssConfig build(String endpoint, String accessKeyId, String accessKeySecret, String bucketName) {
+        AliOssConfig config = new AliOssConfig();
+        config.endpoint = endpoint;
+        config.accessKeyId = accessKeyId;
+        config.accessKeySecret = accessKeySecret;
+        config.bucketName = bucketName;
+        return config;
+    }
 
     public String getEndpoint() {
         return endpoint;

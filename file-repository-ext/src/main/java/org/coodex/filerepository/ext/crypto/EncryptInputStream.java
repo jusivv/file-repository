@@ -57,7 +57,6 @@ public class EncryptInputStream extends InputStream {
             while ((len = inputStream.read(buff)) == 0) {
                 /* no op */
             }
-            log.debug("load buffer size: {}", len);
             if (len > 0) {
                 plainTextBuffer.put(buff, 0, len);
                 plainTextBuffer.flip();
