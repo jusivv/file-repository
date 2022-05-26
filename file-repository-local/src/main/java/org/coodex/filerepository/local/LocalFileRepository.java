@@ -1,21 +1,21 @@
 package org.coodex.filerepository.local;
 
 import com.alibaba.fastjson.JSON;
-import org.coodex.filerepository.api.*;
+import org.coodex.filerepository.api.AbstractFileRepository;
+import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.util.Common;
-import org.coodex.util.Profile;
+import org.coodex.util.UUIDHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
 
-public class LocalFileRepository implements IFileRepository {
+public class LocalFileRepository extends AbstractFileRepository {
     private static Logger log = LoggerFactory.getLogger(LocalFileRepository.class);
-    private static Profile profile = Profile.get("localFileRepository.properties");
+//    private static Profile profile = Profile.get("localFileRepository.properties");
 
     private LocalRepositoryPath[] basePaths;
     private IPathGenerator[] pathGenerators;
@@ -25,30 +25,30 @@ public class LocalFileRepository implements IFileRepository {
         Map<String, LocalRepositoryPath> pathMap = new HashMap<>();
         boolean hasReadDir = false, hasWriteDir = false;
         for (LocalRepositoryPath path : basePaths) {
-            if (!path.isCanRead() && !path.isCanWrite()) {
+            if (!path.isReadable() && !path.isWritable()) {
                 continue;
             }
-            String basePath = path.getBasePath().endsWith(File.separator) ? path.getBasePath() : path.getBasePath()
+            String basePath = path.getLocation().endsWith(File.separator) ? path.getLocation() : path.getLocation()
                     + File.separator;
             if (pathMap.containsKey(basePath)) {
                 continue;
             }
-            File fp = new File(path.getBasePath());
+            File fp = new File(path.getLocation());
             if (!fp.isDirectory()) {
-                throw new RuntimeException("Invalid base path: " + path.getBasePath());
+                throw new RuntimeException("Invalid base path: " + path.getLocation());
             }
             fp = new File(basePath + "." + UuidHelper.getUUIDString());
-            if (path.isCanWrite() && !fp.mkdirs()) {
-                throw new RuntimeException("Fail to write directory: " + path.getBasePath());
+            if (path.isWritable() && !fp.mkdirs()) {
+                throw new RuntimeException("Fail to write directory: " + path.getLocation());
             } else {
                 fp.delete();
             }
-            LocalRepositoryPath localRepositoryPath = new LocalRepositoryPath(basePath, path.isCanRead(),
-                    path.isCanWrite());
-            if (localRepositoryPath.isCanRead()) {
+            LocalRepositoryPath localRepositoryPath = LocalRepositoryPath.build(basePath, path.isReadable(),
+                    path.isWritable());
+            if (localRepositoryPath.isReadable()) {
                 hasReadDir = true;
             }
-            if (localRepositoryPath.isCanWrite()) {
+            if (localRepositoryPath.isWritable()) {
                 hasWriteDir = true;
             }
             pathMap.put(basePath, localRepositoryPath);
@@ -63,84 +63,68 @@ public class LocalFileRepository implements IFileRepository {
     }
 
     public LocalFileRepository(String basePath, IPathGenerator ... pathGenerators) {
-        this(new LocalRepositoryPath[]{new LocalRepositoryPath(basePath, true, true)}, pathGenerators);
+        this(new LocalRepositoryPath[]{LocalRepositoryPath.build(basePath, true, true)}, pathGenerators);
     }
 
     private String getPath(String seed, String basePath) {
         StringBuilder path = new StringBuilder(basePath);
+        if (!basePath.endsWith(File.separator)) {
+            path.append(File.separator);
+        }
         for (IPathGenerator pathGenerator : pathGenerators) {
             String subPath = pathGenerator.getPath(seed);
-            path.append(subPath.endsWith(File.separator) ? subPath : subPath + File.separatorChar);
+            if (Common.isBlank(subPath)) {
+                continue;
+            }
+            if (subPath.startsWith(File.separator)) {
+                subPath = subPath.substring(1);
+            }
+            path.append(subPath.endsWith(File.separator) ? subPath : subPath + File.separator);
         }
         return path.toString();
     }
 
     @Override
-    public String save(InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
-        return save(fileMetaInf, outputStream -> Common.copyStream(inputStream, outputStream));
+    protected String generateFileId(String clientId) {
+        return (Common.isBlank(clientId) ? "" : clientId + "$") + UUIDHelper.getUUIDString();
     }
 
     @Override
-    public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback) throws Throwable {
-        String fileId = UuidHelper.getUUIDString();
-        saveFile(fileId, fileMetaInf, writeCallback);
-        return fileId;
-    }
-
-    private void saveFile(String fileId, FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback)
-            throws Throwable {
-        FileOutputStreamWithMessageDigest digestOutputStream = null;
+    protected void saveFile(String fileId, InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
         MultipleOutputStream dataOutputStream = new MultipleOutputStream();
         MultipleOutputStream metaOutputStream = new MultipleOutputStream();
-        String digestAlgorithm = profile.getString("digestAlgorithm", "MD5");
         for (LocalRepositoryPath path : this.basePaths) {
-            if (path.isCanWrite()) {
-                String filePath = getPath(fileId, path.getBasePath());
-                log.debug("save file {} to {}", fileId, filePath);
+            if (path.isWritable()) {
+                String filePath = getPath(fileId, path.getLocation());
+                log.debug("save file {} to {}", fileId, path.getLocation());
                 File parentPath = new File(filePath);
                 if (!parentPath.exists()) {
                     parentPath.mkdirs();
                 }
                 String dataFilePath = filePath + fileId + ".data";
-                if (digestOutputStream == null) {
-                    digestOutputStream = new FileOutputStreamWithMessageDigest(new File(dataFilePath),
-                            MessageDigest.getInstance(digestAlgorithm));
-                    dataOutputStream.addOutputStream(dataFilePath, new BufferedOutputStream(digestOutputStream));
-                } else {
-                    dataOutputStream.addOutputStream(dataFilePath, new BufferedOutputStream(new FileOutputStream(dataFilePath)));
-                }
+                dataOutputStream.addOutputStream(dataFilePath, new BufferedOutputStream(new FileOutputStream(dataFilePath)));
                 String metaFilePath = filePath + fileId + ".json";
                 metaOutputStream.addOutputStream(metaFilePath, new BufferedOutputStream(new FileOutputStream(metaFilePath)));
             }
         }
-        if (digestOutputStream != null) {
-            try {
-                writeCallback.write(dataOutputStream);
-            } finally {
-                dataOutputStream.close();
-            }
-            StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
-            storedFileMetaInf.setHashAlgorithm(digestAlgorithm);
-            storedFileMetaInf.setHashValue(digestOutputStream.getDigestValue());
-            try {
-                metaOutputStream.write(JSON.toJSONString(storedFileMetaInf).getBytes(StandardCharsets.UTF_8));
-            } finally {
-                metaOutputStream.close();
-            }
+        try {
+            Common.copyStream(inputStream, dataOutputStream);
+        } finally {
+            dataOutputStream.close();
+        }
+        try {
+            metaOutputStream.write(JSON.toJSONString(fileMetaInf).getBytes(StandardCharsets.UTF_8));
+        } finally {
+            metaOutputStream.close();
         }
     }
 
     @Override
-    public void get(String fileId, OutputStream outputStream) throws Throwable {
-        get(fileId, (buff, len, fileSize) -> outputStream.write(buff, 0, len));
-    }
-
-    @Override
-    public void get(String fileId, RepositoryReadCallback readCallback) throws Throwable {
+    public void get(String fileId, long offset, int length, OutputStream outputStream) throws Throwable {
         boolean read = false;
         for (LocalRepositoryPath path : this.basePaths) {
-            if (path.isCanRead()) {
-                String filePath = getPath(fileId, path.getBasePath());
+            if (path.isReadable()) {
+                String filePath = getPath(fileId, path.getLocation());
                 File dataFile = new File(filePath + fileId + ".data");
                 if (dataFile.exists()) {
                     byte[] buff = new byte[4 * 1024];
@@ -148,10 +132,24 @@ public class LocalFileRepository implements IFileRepository {
                     InputStream inputStream = new BufferedInputStream(new FileInputStream(dataFile));
                     try {
                         long fileSize = dataFile.length();
-                        while ((len = inputStream.read(buff)) > 0) {
-                            readCallback.read(buff, len, fileSize);
+                        if (length > 0) {
+                            fileSize = Math.min(fileSize, length);
+
                         }
-                        log.debug("read file {} from {}", fileId, path.getBasePath());
+                        if (offset > 0) {
+                            inputStream.skip(offset);
+                        }
+                        long restSize = fileSize;
+                        while ((len = inputStream.read(buff)) > 0) {
+                            if (restSize > len) {
+                                outputStream.write(buff, 0, len);
+                            } else {
+                                outputStream.write(buff, 0, (int) restSize);
+                                break;
+                            }
+                            restSize -= len;
+                        }
+                        log.debug("read file {} from {}", fileId, path.getLocation());
                         read = true;
                         break;
                     } finally {
@@ -168,10 +166,10 @@ public class LocalFileRepository implements IFileRepository {
     @Override
     public void delete(String fileId) throws Throwable {
         for (LocalRepositoryPath path : this.basePaths) {
-            if (path.isCanWrite()) {
-                String filePath = getPath(fileId, path.getBasePath());
+            if (path.isWritable()) {
+                String filePath = getPath(fileId, path.getLocation());
                 deleteFile(filePath, fileId);
-                log.debug("delete file {} from {}", fileId, path.getBasePath());
+                log.debug("delete file {} from {}", fileId, path.getLocation());
             }
         }
     }
@@ -190,15 +188,15 @@ public class LocalFileRepository implements IFileRepository {
     }
 
     @Override
-    public StoredFileMetaInf getMetaInf(String fileId) throws Throwable {
+    public FileMetaInf getMetaInf(String fileId) throws Throwable {
         for (LocalRepositoryPath path : this.basePaths) {
-            if (path.isCanRead()) {
-                String filePath = getPath(fileId, path.getBasePath());
+            if (path.isReadable()) {
+                String filePath = getPath(fileId, path.getLocation());
                 File metaFile = new File(filePath + fileId + ".json");
                 if (metaFile.exists()) {
                     InputStream inputStream = new FileInputStream(metaFile);
                     try {
-                        return JSON.parseObject(inputStream, StoredFileMetaInf.class);
+                        return JSON.parseObject(inputStream, FileMetaInf.class);
                     } finally {
                         inputStream.close();
                     }
@@ -206,40 +204,5 @@ public class LocalFileRepository implements IFileRepository {
             }
         }
         return null;
-    }
-
-    @Override
-    public String asyncSave(InputStream inputStream, FileMetaInf fileMetaInf, RepositoryNotifyCallback notifyCallback) {
-        return asyncSave(fileMetaInf, outputStream -> Common.copyStream(inputStream, outputStream), notifyCallback);
-    }
-
-    @Override
-    public String asyncSave(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback,
-                            RepositoryNotifyCallback notifyCallback) {
-        final String fileId = UuidHelper.getUUIDString();
-        new Thread(() -> {
-            try {
-                saveFile(fileId, fileMetaInf, writeCallback);
-                notifyCallback.complete(true, fileId, null);
-            } catch (Throwable e) {
-                log.error(e.getLocalizedMessage(), e);
-                notifyCallback.complete(false, fileId, e);
-            }
-        }).start();
-        return fileId;
-    }
-
-    @Override
-    public String asyncDelete(String fileId, RepositoryNotifyCallback notifyCallback) {
-        new Thread(() -> {
-            for (LocalRepositoryPath path : this.basePaths) {
-                if (path.isCanWrite()) {
-                    String filePath = getPath(fileId, path.getBasePath());
-                    deleteFile(filePath, fileId);
-                    log.debug("delete file {} from {}", fileId, path.getBasePath());
-                }
-            }
-        }).start();
-        return fileId;
     }
 }

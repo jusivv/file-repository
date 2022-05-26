@@ -1,0 +1,18 @@
+paths:
+  - location: "/Users/sujiwu/Downloads/fileRepo/save1/"
+    readable: true
+    writable: true
+  - location: "/Users/sujiwu/Downloads/fileRepo/save2/"
+    readable: true
+    writable: false
+  - location: "/Users/sujiwu/Downloads/fileRepo/save3/"
+    readable: true
+    writable: true
+aesKey: "MDEyMzQ1Njc4OUFCQ0RFRg=="
+file: "/Users/sujiwu/Downloads/dlzx.logo.jpg"
+output: "/Users/sujiwu/Downloads/fileRepo/get/"
+aliOss:
+  endpoint: "oss-cn-beijing.aliyuncs.com"
+  accessKeyId: ""
+  accessKeySecret: ""
+  bucketName: ""

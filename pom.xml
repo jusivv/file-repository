@@ -7,7 +7,7 @@
     <groupId>org.coodex</groupId>
     <artifactId>file-repository</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.4</version>
+    <version>2.0.1</version>
     <modules>
         <module>file-repository-api</module>
         <module>file-repository-local</module>
@@ -37,7 +37,7 @@
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>
-                <version>1.2.70</version>
+                <version>1.2.83</version>
             </dependency>
             <dependency>
                 <groupId>org.coodex</groupId>
@@ -48,6 +48,11 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-crypto</artifactId>
                 <version>1.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>1.30</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -5,24 +5,36 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.TagSet;
-import org.coodex.filerepository.api.*;
+import org.coodex.filerepository.api.AbstractFileRepository;
+import org.coodex.filerepository.api.FileMetaInf;
+import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.util.UUIDHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.Locale;
 
-public class AliOssFileRepository implements IFileRepository {
+public class AliOssFileRepository extends AbstractFileRepository {
     private static Logger log = LoggerFactory.getLogger(AliOssFileRepository.class);
 
+    /**
+     * directory for file: none
+     */
     public static final int DIRECTORY_TYPE_NONE = 0;
+    /**
+     * directory for file: divide by year
+     */
     public static final int DIRECTORY_TYPE_YEAR = 1;
+    /**
+     * directory for file: divide by year/month
+     */
     public static final int DIRECTORY_TYPE_MONTH = 2;
+    /**
+     * directory for file: divide by year/month/date
+     */
     public static final int DIRECTORY_TYPE_DAY = 3;
     public static final String NAME_SPLITTER = "/";
 
@@ -30,20 +42,27 @@ public class AliOssFileRepository implements IFileRepository {
 
     private int directoryType = DIRECTORY_TYPE_NONE;
 
+    private boolean divideByClient;
+
     private OSSClientBuilder ossClientBuilder;
 
-    public AliOssFileRepository(String endpoint, String accessKeyId, String accessKeySecret, String bucketName,
-                                int directoryType) {
-        this.endpoint = endpoint;
-        this.accessKeyId = accessKeyId;
-        this.accessKeySecret = accessKeySecret;
-        this.bucketName = bucketName;
+    public AliOssFileRepository(AliOssConfig aliOssConfig, int directoryType, boolean divideByClient) {
+        this.endpoint = aliOssConfig.getEndpoint();
+        this.accessKeyId = aliOssConfig.getAccessKeyId();
+        this.accessKeySecret = aliOssConfig.getAccessKeySecret();
+        this.bucketName = aliOssConfig.getBucketName();
         this.directoryType = directoryType;
+        this.divideByClient = divideByClient;
         ossClientBuilder = new OSSClientBuilder();
     }
 
-    public AliOssFileRepository(String endpoint, String accessKeyId, String accessKeySecret, String bucketName) {
-        this(endpoint, accessKeyId, accessKeySecret, bucketName, DIRECTORY_TYPE_NONE);
+    /**
+     * Constructor
+     * file divide by client
+     * @param aliOssConfig
+     */
+    public AliOssFileRepository(AliOssConfig aliOssConfig) {
+        this(aliOssConfig, DIRECTORY_TYPE_NONE, true);
     }
 
     private String adjustDate(int date) {
@@ -54,8 +73,12 @@ public class AliOssFileRepository implements IFileRepository {
         }
     }
 
-    private String generateFileId() {
+    @Override
+    protected String generateFileId(String clientId) {
         StringBuilder sb = new StringBuilder();
+        if (divideByClient) {
+            sb.append(clientId).append(NAME_SPLITTER);
+        }
         Calendar calendar = Calendar.getInstance(Locale.CHINA);
         if (directoryType > DIRECTORY_TYPE_NONE) {
             sb.append(calendar.get(Calendar.YEAR)).append(NAME_SPLITTER);
@@ -70,7 +93,8 @@ public class AliOssFileRepository implements IFileRepository {
         return sb.toString();
     }
 
-    private void saveFile(InputStream inputStream, FileMetaInf fileMetaInf, String fileId) {
+    @Override
+    protected void saveFile(String fileId, InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             ObjectMetadata objectMetadata = new ObjectMetadata();
@@ -84,48 +108,33 @@ public class AliOssFileRepository implements IFileRepository {
     }
 
     @Override
-    public String save(InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
-        String fileId = generateFileId();
-        saveFile(inputStream, fileMetaInf, fileId);
-        return fileId;
-    }
-
-    @Override
-    public String save(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback) throws Throwable {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            writeCallback.write(outputStream);
-            outputStream.flush();
-            String fileId = generateFileId();
-            saveFile(new ByteArrayInputStream(outputStream.toByteArray()), fileMetaInf, fileId);
-            return fileId;
-        } finally {
-            outputStream.close();
-        }
-    }
-
-    @Override
-    public void get(String fileId, OutputStream outputStream) throws Throwable {
-        get(fileId, ((buff, len, fileSize) -> {
-            outputStream.write(buff, 0, len);
-        }));
-    }
-
-    @Override
-    public void get(String fileId, RepositoryReadCallback readCallback) throws Throwable {
+    public void get(String fileId, long offset, int length, OutputStream outputStream) throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             OSSObject ossObject = ossClient.getObject(bucketName, fileId);
             if (ossObject == null) {
                 throw new RuntimeException("OSS object not found.");
             }
+            byte[] buff = new byte[4 * 1024];
+            int len = 0;
             InputStream inputStream = ossObject.getObjectContent();
             try {
-                byte[] buff = new byte[4 * 1024];
-                int len = 0;
                 long size = ossObject.getObjectMetadata().getContentLength();
+                if (length > 0) {
+                    size = Math.min(size, length);
+                }
+                if (offset > 0) {
+                    inputStream.skip(offset);
+                }
+                long restSize = size;
                 while ((len = inputStream.read(buff)) > 0) {
-                    readCallback.read(buff, len, size);
+                    if (restSize > len) {
+                        outputStream.write(buff, 0, len);
+                    } else {
+                        outputStream.write(buff, 0, (int) restSize);
+                        break;
+                    }
+                    restSize -= len;
                 }
             } finally {
                 ossObject.close();
@@ -146,7 +155,7 @@ public class AliOssFileRepository implements IFileRepository {
     }
 
     @Override
-    public StoredFileMetaInf getMetaInf(String fileId) throws Throwable {
+    public FileMetaInf getMetaInf(String fileId) throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             TagSet tagSet = ossClient.getObjectTagging(bucketName, fileId);
@@ -154,53 +163,5 @@ public class AliOssFileRepository implements IFileRepository {
         } finally {
           ossClient.shutdown();
         }
-    }
-
-    @Override
-    public String asyncSave(InputStream inputStream, FileMetaInf fileMetaInf, RepositoryNotifyCallback notifyCallback) {
-        final String fileId = generateFileId();
-        new Thread(() -> {
-            try {
-                saveFile(inputStream, fileMetaInf, fileId);
-                notifyCallback.complete(true, fileId, null);
-            } catch (Throwable t) {
-                log.error(t.getLocalizedMessage(), t);
-                notifyCallback.complete(false, fileId, t);
-            }
-
-        }).start();
-        return fileId;
-    }
-
-    @Override
-    public String asyncSave(FileMetaInf fileMetaInf, RepositoryWriteCallback writeCallback, RepositoryNotifyCallback notifyCallback) {
-        final String fileId = generateFileId();
-        new Thread(() -> {
-            try {
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                writeCallback.write(outputStream);
-                outputStream.close();
-                saveFile(new ByteArrayInputStream(outputStream.toByteArray()), fileMetaInf, fileId);
-                notifyCallback.complete(true, fileId, null);
-            } catch (Throwable t) {
-                log.error(t.getLocalizedMessage(), t);
-                notifyCallback.complete(false, fileId, t);
-            }
-        }).start();
-        return fileId;
-    }
-
-    @Override
-    public String asyncDelete(String fileId, RepositoryNotifyCallback notifyCallback) {
-        new Thread(() -> {
-            try {
-                delete(fileId);
-                notifyCallback.complete(true, fileId, null);
-            } catch (Throwable t) {
-                log.error(t.getLocalizedMessage(), t);
-                notifyCallback.complete(false, fileId, t);
-            }
-        }).start();
-        return fileId;
     }
 }

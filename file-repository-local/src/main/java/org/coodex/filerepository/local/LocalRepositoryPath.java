@@ -7,43 +7,45 @@ public class LocalRepositoryPath {
     /**
      * base path
      */
-    private String basePath;
+    private String location;
     /**
      * read file from this path
      */
-    private boolean canRead;
+    private boolean readable;
     /**
      * write file to this path
      */
-    private boolean canWrite;
+    private boolean writable;
 
-    public LocalRepositoryPath(String basePath, boolean canRead, boolean canWrite) {
-        this.basePath = basePath;
-        this.canRead = canRead;
-        this.canWrite = canWrite;
+    public static LocalRepositoryPath build(String location, boolean readable, boolean writable) {
+        LocalRepositoryPath path = new LocalRepositoryPath();
+        path.location = location;
+        path.readable = readable;
+        path.writable = writable;
+        return path;
     }
 
-    public String getBasePath() {
-        return basePath;
+    public String getLocation() {
+        return location;
     }
 
-    public void setBasePath(String basePath) {
-        this.basePath = basePath;
+    public void setLocation(String location) {
+        this.location = location;
     }
 
-    public boolean isCanRead() {
-        return canRead;
+    public boolean isReadable() {
+        return readable;
     }
 
-    public void setCanRead(boolean canRead) {
-        this.canRead = canRead;
+    public void setReadable(boolean readable) {
+        this.readable = readable;
     }
 
-    public boolean isCanWrite() {
-        return canWrite;
+    public boolean isWritable() {
+        return writable;
     }
 
-    public void setCanWrite(boolean canWrite) {
-        this.canWrite = canWrite;
+    public void setWritable(boolean writable) {
+        this.writable = writable;
     }
 }
