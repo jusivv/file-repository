@@ -7,7 +7,6 @@ import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.TagSet;
 import org.coodex.filerepository.api.AbstractFileRepository;
 import org.coodex.filerepository.api.FileMetaInf;
-import org.coodex.filerepository.api.StoredFileMetaInf;
 import org.coodex.util.UUIDHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,13 +93,12 @@ public class AliOssFileRepository extends AbstractFileRepository {
     }
 
     @Override
-    protected void saveFile(String fileId, InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
+    protected <T extends FileMetaInf> void saveFile(String fileId, InputStream inputStream, T fileMetaInf)
+            throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             ObjectMetadata objectMetadata = new ObjectMetadata();
-            StoredFileMetaInf storedFileMetaInf = StoredFileMetaInf.from(fileMetaInf);
-            storedFileMetaInf.setStoreTime(System.currentTimeMillis());
-            objectMetadata.setObjectTagging(ObjectTaggingHelper.buildTags(storedFileMetaInf));
+            objectMetadata.setObjectTagging(ObjectTaggingHelper.toTags(fileMetaInf));
             ossClient.putObject(bucketName, fileId, inputStream, objectMetadata);
         } finally {
             ossClient.shutdown();
@@ -155,11 +153,11 @@ public class AliOssFileRepository extends AbstractFileRepository {
     }
 
     @Override
-    public FileMetaInf getMetaInf(String fileId) throws Throwable {
+    public <T extends FileMetaInf> T getMetaInf(String fileId, Class<T> clazz) throws Throwable {
         OSS ossClient = ossClientBuilder.build(endpoint, accessKeyId, accessKeySecret);
         try {
             TagSet tagSet = ossClient.getObjectTagging(bucketName, fileId);
-            return ObjectTaggingHelper.parseFileMetaInf(tagSet);
+            return ObjectTaggingHelper.parseTags(tagSet, clazz);
         } finally {
           ossClient.shutdown();
         }

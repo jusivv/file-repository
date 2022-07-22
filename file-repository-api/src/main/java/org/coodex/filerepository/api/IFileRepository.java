@@ -15,7 +15,7 @@ public interface IFileRepository {
      * @return  file id
      * @throws Throwable
      */
-    String save(InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable;
+    <T extends FileMetaInf> String save(InputStream inputStream, T fileMetaInf) throws Throwable;
 
     /**
      * save file in async model
@@ -24,7 +24,7 @@ public interface IFileRepository {
      * @param notifyCallback    notify callback
      * @return                  file id
      */
-    String asyncSave(InputStream inputStream, FileMetaInf fileMetaInf, RepositoryNotifyCallback notifyCallback);
+    <T extends FileMetaInf> String asyncSave(InputStream inputStream, T fileMetaInf, RepositoryNotifyCallback notifyCallback);
 
     /**
      * get file
@@ -64,5 +64,5 @@ public interface IFileRepository {
      * @return              file meta-info
      * @throws Throwable
      */
-    FileMetaInf getMetaInf(String fileId) throws Throwable;
+    <T extends FileMetaInf> T getMetaInf(String fileId, Class<T> clazz) throws Throwable;
 }

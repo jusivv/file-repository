@@ -7,16 +7,18 @@ public abstract class AbstractFileRepository implements IFileRepository {
 
     protected abstract String generateFileId(String clientId);
 
-    protected abstract void saveFile(String fileId, InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable;
+    protected abstract <T extends FileMetaInf> void saveFile(String fileId, InputStream inputStream, T fileMetaInf) throws Throwable;
+
     @Override
-    public String save(InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
+    public <T extends FileMetaInf> String save(InputStream inputStream, T fileMetaInf) throws Throwable {
         String fileId = generateFileId(fileMetaInf.getClientId());
         saveFile(fileId, inputStream, fileMetaInf);
         return fileId;
     }
 
     @Override
-    public String asyncSave(InputStream inputStream, FileMetaInf fileMetaInf, RepositoryNotifyCallback notifyCallback) {
+    public <T extends FileMetaInf> String asyncSave(InputStream inputStream, T fileMetaInf,
+                                                    RepositoryNotifyCallback notifyCallback) {
         String fileId = generateFileId(fileMetaInf.getClientId());
         new Thread(() -> {
             try {
@@ -53,5 +55,5 @@ public abstract class AbstractFileRepository implements IFileRepository {
     }
 
     @Override
-    public abstract FileMetaInf getMetaInf(String fileId) throws Throwable;
+    public abstract <T extends FileMetaInf> T getMetaInf(String fileId, Class<T> clazz) throws Throwable;
 }
