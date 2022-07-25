@@ -150,6 +150,7 @@ public class LocalFileRepository extends AbstractFileRepository {
                             }
                             restSize -= len;
                         }
+                        outputStream.flush();
                         log.debug("read file {} from {}", fileId, path.getLocation());
                         read = true;
                         break;

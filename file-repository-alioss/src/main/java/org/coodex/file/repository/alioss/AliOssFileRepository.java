@@ -134,6 +134,7 @@ public class AliOssFileRepository extends AbstractFileRepository {
                     }
                     restSize -= len;
                 }
+                outputStream.flush();
             } finally {
                 ossObject.close();
             }
