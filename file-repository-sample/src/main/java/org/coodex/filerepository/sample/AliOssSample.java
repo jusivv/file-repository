@@ -48,7 +48,7 @@ public class AliOssSample implements IFileRespositorySample {
 
     @Override
     public void readFile(String fileId) throws Throwable {
-        FileMetaInf metaInf = fileRepository.getMetaInf(fileId);
+        FileMetaInf metaInf = fileRepository.getMetaInf(fileId, FileMetaInf.class);
         log.debug("file meta-inf: {}", JSON.toJSONString(metaInf));
         String outputPath = config.getOutput();
         if (!outputPath.endsWith(File.separator)) {

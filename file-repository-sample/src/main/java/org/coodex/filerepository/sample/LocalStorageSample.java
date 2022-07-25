@@ -53,7 +53,7 @@ public class LocalStorageSample implements IFileRespositorySample {
     public void readFile(String fileId) throws Throwable {
         long offset = 0;
         int length = 4 * 1024;
-        FileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
+        FileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId, FileMetaInf.class);
         log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
                 + (config.getOutput().endsWith(File.separator) ? "" : File.separator)

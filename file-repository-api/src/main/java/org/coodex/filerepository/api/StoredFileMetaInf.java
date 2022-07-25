@@ -3,6 +3,7 @@ package org.coodex.filerepository.api;
 /**
  * file meta-inf in repository
  */
+@Deprecated
 public class StoredFileMetaInf extends FileMetaInf {
     /**
      * file hash value with hex

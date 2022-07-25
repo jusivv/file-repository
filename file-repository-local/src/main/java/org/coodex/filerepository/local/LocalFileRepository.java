@@ -90,7 +90,8 @@ public class LocalFileRepository extends AbstractFileRepository {
     }
 
     @Override
-    protected void saveFile(String fileId, InputStream inputStream, FileMetaInf fileMetaInf) throws Throwable {
+    protected <T extends FileMetaInf> void saveFile(String fileId, InputStream inputStream, T fileMetaInf)
+            throws Throwable {
         MultipleOutputStream dataOutputStream = new MultipleOutputStream();
         MultipleOutputStream metaOutputStream = new MultipleOutputStream();
         for (LocalRepositoryPath path : this.basePaths) {
@@ -149,6 +150,7 @@ public class LocalFileRepository extends AbstractFileRepository {
                             }
                             restSize -= len;
                         }
+                        outputStream.flush();
                         log.debug("read file {} from {}", fileId, path.getLocation());
                         read = true;
                         break;
@@ -188,7 +190,7 @@ public class LocalFileRepository extends AbstractFileRepository {
     }
 
     @Override
-    public FileMetaInf getMetaInf(String fileId) throws Throwable {
+    public <T extends FileMetaInf> T getMetaInf(String fileId, Class<T> clazz) throws Throwable {
         for (LocalRepositoryPath path : this.basePaths) {
             if (path.isReadable()) {
                 String filePath = getPath(fileId, path.getLocation());
@@ -196,7 +198,7 @@ public class LocalFileRepository extends AbstractFileRepository {
                 if (metaFile.exists()) {
                     InputStream inputStream = new FileInputStream(metaFile);
                     try {
-                        return JSON.parseObject(inputStream, FileMetaInf.class);
+                        return JSON.parseObject(inputStream, clazz);
                     } finally {
                         inputStream.close();
                     }

@@ -59,7 +59,7 @@ public class CtrCryptoAccessSample implements IFileRespositorySample {
 
     @Override
     public void readFile(String fileId) throws Throwable {
-        FileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId);
+        FileMetaInf fileMetaInf = fileRepository.getMetaInf(fileId, FileMetaInf.class);
         log.info("file meta-inf: {}", JSON.toJSONString(fileMetaInf));
         String outputFile = config.getOutput()
                 + (config.getOutput().endsWith(File.separator) ? "" : File.separator)
