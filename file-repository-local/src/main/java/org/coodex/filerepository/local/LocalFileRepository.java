@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import org.coodex.filerepository.api.AbstractFileRepository;
 import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.util.Common;
-import org.coodex.util.UUIDHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +85,7 @@ public class LocalFileRepository extends AbstractFileRepository {
 
     @Override
     protected String generateFileId(String clientId) {
-        return (Common.isBlank(clientId) ? "" : clientId + "$") + UUIDHelper.getUUIDString();
+        return (Common.isBlank(clientId) ? "" : clientId + "$") + UuidHelper.getUUIDString();
     }
 
     @Override
