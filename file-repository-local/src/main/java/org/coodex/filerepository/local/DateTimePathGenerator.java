@@ -53,19 +53,20 @@ public class DateTimePathGenerator implements IPathGenerator {
     }
 
     private UUID toUUID(String seed) {
-        String uuidStr = seed;
-        StringBuilder sb = new StringBuilder();
-        if (seed.length() == 32) {
-            sb.append(seed.substring(0, 8)).append('-').append(seed.substring(8, 12)).append('-')
-                    .append(seed.substring(12, 16)).append('-').append(seed.substring(16, 20)).append('-')
-                    .append(seed.substring(20));
+        int index = seed.indexOf('$');
+        String uuidStr = index == -1 ? seed : seed.substring(index + 1);
+        if (uuidStr.length() == 32) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(uuidStr.substring(0, 8)).append('-').append(uuidStr.substring(8, 12)).append('-')
+                    .append(uuidStr.substring(12, 16)).append('-').append(uuidStr.substring(16, 20)).append('-')
+                    .append(uuidStr.substring(20));
             uuidStr = sb.toString();
         }
         if (uuidStr.length() == 36) {
             return UUID.fromString(uuidStr);
         } else {
-            log.warn("Illegal UUID string: {}", seed);
-            return UUID.randomUUID();
+            log.warn("Illegal time-based UUID string: {}", seed);
+            throw new RuntimeException("Illegal time-based UUID string " + seed);
         }
     }
 }
