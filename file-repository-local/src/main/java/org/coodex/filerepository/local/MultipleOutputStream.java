@@ -37,4 +37,8 @@ public class MultipleOutputStream extends OutputStream {
             outputStream.close();
         }
     }
+
+    public boolean isEmpty() {
+        return outputStreams.isEmpty();
+    }
 }

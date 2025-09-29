@@ -36,11 +36,14 @@ public class LocalFileRepository extends AbstractFileRepository {
             if (!fp.isDirectory()) {
                 throw new RuntimeException("Invalid base path: " + path.getLocation());
             }
-            fp = new File(basePath + "." + UuidHelper.getUUIDString());
-            if (path.isWritable() && !fp.mkdirs()) {
-                throw new RuntimeException("Fail to write directory: " + path.getLocation());
-            } else {
-                fp.delete();
+            // TODO logical bug
+            if (path.isWritable()) {
+                fp = new File(basePath + "." + UuidHelper.getUUIDString());
+                if (fp.mkdirs()) {
+                    fp.delete();
+                } else {
+                    throw new RuntimeException("Fail to write directory: " + path.getLocation());
+                }
             }
             LocalRepositoryPath localRepositoryPath = LocalRepositoryPath.build(basePath, path.isReadable(),
                     path.isWritable());
@@ -52,11 +55,8 @@ public class LocalFileRepository extends AbstractFileRepository {
             }
             pathMap.put(basePath, localRepositoryPath);
         }
-        if (!hasReadDir) {
-            throw new RuntimeException("There is no directory to read");
-        }
-        if (!hasWriteDir) {
-            throw new RuntimeException("There is no directory to write");
+        if (!hasReadDir && !hasWriteDir) {
+            throw new RuntimeException("no directory allows to access");
         }
         this.basePaths = pathMap.values().toArray(new LocalRepositoryPath[0]);
     }
@@ -106,6 +106,9 @@ public class LocalFileRepository extends AbstractFileRepository {
                 String metaFilePath = filePath + fileId + ".json";
                 metaOutputStream.addOutputStream(metaFilePath, new BufferedOutputStream(new FileOutputStream(metaFilePath)));
             }
+        }
+        if (dataOutputStream.isEmpty()) {
+            throw new RuntimeException("can't save file to any directory.");
         }
         try {
             Common.copyStream(inputStream, dataOutputStream);
