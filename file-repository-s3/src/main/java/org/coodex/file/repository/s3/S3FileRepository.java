@@ -106,11 +106,18 @@ public class S3FileRepository extends AbstractFileRepository implements AutoClos
             if (skiped < offset) {
                 throw new RuntimeException("No data remained after skipping offset " + offset);
             }
-            int remained = length, len = -1;
-            while (remained > 0 || (len = responseStream.read(buff)) != -1) {
-                outputStream.write(buff, 0, Math.min(len, remained));
-                remained -= len;
+            int remained = length, len;
+            if (length == 0) {
+                while ((len = responseStream.read(buff)) != -1) {
+                    outputStream.write(buff, 0, len);
+                }
+            } else {
+                while (remained > 0 && (len = responseStream.read(buff)) != -1) {
+                    outputStream.write(buff, 0, Math.min(len, remained));
+                    remained -= len;
+                }
             }
+            outputStream.flush();
         }
     }
 
