@@ -7,13 +7,14 @@
     <groupId>org.coodex</groupId>
     <artifactId>file-repository</artifactId>
     <packaging>pom</packaging>
-    <version>2.0.5</version>
+    <version>2.1.0</version>
     <modules>
         <module>file-repository-api</module>
         <module>file-repository-local</module>
         <module>file-repository-ext</module>
         <module>file-repository-sample</module>
         <module>file-repository-alioss</module>
+        <module>file-repository-s3</module>
     </modules>
 
     <properties>
@@ -58,6 +59,16 @@
                 <groupId>commons-beanutils</groupId>
                 <artifactId>commons-beanutils</artifactId>
                 <version>1.9.4</version>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>s3</artifactId>
+                <version>2.41.10</version>
+            </dependency>
+            <dependency>
+                <groupId>de.huxhorn.sulky</groupId>
+                <artifactId>de.huxhorn.sulky.ulid</artifactId>
+                <version>8.3.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
