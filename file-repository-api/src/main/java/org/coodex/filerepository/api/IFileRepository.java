@@ -2,6 +2,7 @@ package org.coodex.filerepository.api;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Consumer;
 
 /**
  * file repository
@@ -65,4 +66,8 @@ public interface IFileRepository {
      * @throws Throwable
      */
     <T extends FileMetaInf> T getMetaInf(String fileId, Class<T> clazz) throws Throwable;
+
+    default void get(String fileId, Consumer<InputStream> reader) throws Throwable {
+        throw new RuntimeException("unsupported method !");
+    }
 }

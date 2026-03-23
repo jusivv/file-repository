@@ -9,8 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class LocalFileRepository extends AbstractFileRepository {
     private static Logger log = LoggerFactory.getLogger(LocalFileRepository.class);
@@ -208,5 +210,27 @@ public class LocalFileRepository extends AbstractFileRepository {
             }
         }
         return null;
+    }
+
+    @Override
+    public void get(String fileId, Consumer<InputStream> reader) throws Throwable {
+        boolean read = false;
+        for (LocalRepositoryPath path : this.basePaths) {
+            if (path.isReadable()) {
+                String filePath = getPath(fileId, path.getLocation());
+                File dataFile = new File(filePath + fileId + ".data");
+                if (dataFile.exists()) {
+                    try (InputStream inputStream = new BufferedInputStream(Files.newInputStream(dataFile.toPath()))) {
+                        log.debug("read file {} from {}", fileId, path.getLocation());
+                        reader.accept(inputStream);
+                        read = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!read) {
+            throw new RuntimeException("file not found: " + fileId);
+        }
     }
 }
