@@ -2,6 +2,7 @@ package org.coodex.file.repository.s3;
 
 import com.alibaba.fastjson.JSON;
 import de.huxhorn.sulky.ulid.ULID;
+import org.apache.commons.codec.binary.Base64;
 import org.coodex.filerepository.api.AbstractFileRepository;
 import org.coodex.filerepository.api.FileMetaInf;
 import org.coodex.filerepository.api.RepositoryNotifyCallback;
@@ -23,6 +24,7 @@ import software.amazon.awssdk.utils.Validate;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +34,7 @@ import java.util.concurrent.Executors;
 
 public class S3FileRepository extends AbstractFileRepository implements AutoCloseable {
     private static final String FILE_META_INFO = "x-file-meta-info";
+    private static final String ENCODED_META_DATA_PREFIX = "base64:";
     private static final ULID ULID_GENERATOR = new ULID();
     private static final Logger log = LoggerFactory.getLogger(S3FileRepository.class);
     private S3AsyncClient s3AsyncClient;
@@ -82,7 +85,7 @@ public class S3FileRepository extends AbstractFileRepository implements AutoClos
     @Override
     protected <T extends FileMetaInf> void saveFile(String fileId, InputStream inputStream, T fileMetaInf) throws Throwable {
         Map<String, String> metaData = new HashMap<>();
-        metaData.put(FILE_META_INFO, JSON.toJSONString(fileMetaInf));
+        metaData.put(FILE_META_INFO, encodeMetaData(fileMetaInf));
         log.debug("save file, fileId: {}, bucket name: {}", fileId, bucketName);
         s3AsyncClient.putObject(
             PutObjectRequest.builder()
@@ -141,7 +144,7 @@ public class S3FileRepository extends AbstractFileRepository implements AutoClos
         ).join().metadata();
         String metaStr = metaData.get(FILE_META_INFO);
         if (!StringUtils.isBlank(metaStr)) {
-            return JSON.parseObject(metaData.get(FILE_META_INFO), clazz);
+            return decodeMetaData(metaData.get(FILE_META_INFO), clazz);
         } else {
             return null;
         }
@@ -151,7 +154,7 @@ public class S3FileRepository extends AbstractFileRepository implements AutoClos
     public <T extends FileMetaInf> String asyncSave(InputStream inputStream, T fileMetaInf, RepositoryNotifyCallback notifyCallback) {
         String fileId = generateFileId(fileMetaInf.getClientId());
         Map<String, String> metaData = new HashMap<>();
-        metaData.put(FILE_META_INFO, JSON.toJSONString(fileMetaInf));
+        metaData.put(FILE_META_INFO, encodeMetaData(fileMetaInf));
         s3AsyncClient.putObject(
             PutObjectRequest.builder()
                 .bucket(bucketName)
@@ -184,6 +187,18 @@ public class S3FileRepository extends AbstractFileRepository implements AutoClos
                 notifyCallback.complete(false, fileId, throwable);
             }
         });
+    }
+
+    private <T extends FileMetaInf> String encodeMetaData(T fileMetaInf) {
+        return ENCODED_META_DATA_PREFIX + Base64.encodeBase64String(JSON.toJSONString(fileMetaInf).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private <T extends FileMetaInf> T decodeMetaData(String data, Class<T> clazz) {
+        if (data.startsWith(ENCODED_META_DATA_PREFIX)) {
+            return JSON.parseObject(data.replaceFirst(ENCODED_META_DATA_PREFIX, ""), clazz);
+        } else {
+            return JSON.parseObject(data, clazz);
+        }
     }
 
     public void shutdown() {

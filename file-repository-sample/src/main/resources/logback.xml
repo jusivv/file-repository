@@ -13,4 +13,7 @@
     <logger name="org.coodex" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
+<!--    <logger name="software.amazon.awssdk" level="DEBUG" additivity="false">-->
+<!--        <appender-ref ref="STDOUT" />-->
+<!--    </logger>-->
 </configuration>
